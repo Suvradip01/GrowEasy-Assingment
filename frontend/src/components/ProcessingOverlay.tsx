@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Check, FileText, Brain, Cpu, Sparkles, Terminal, type LucideIcon } from 'lucide-react';
+import React from 'react';
+import { motion } from 'framer-motion';
+import { Loader2, Check, FileText, Brain, Cpu, Sparkles, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ProcessingOverlayProps {
@@ -27,46 +27,6 @@ const STEPS: Step[] = [
 ];
 
 export default function ProcessingOverlay({ progress, message, totalRows }: ProcessingOverlayProps) {
-  const [logs, setLogs] = useState<string[]>([]);
-
-  // Generate simulated but context-relevant logs based on progress threshold
-  useEffect(() => {
-    const timestamp = () => {
-      const now = new Date();
-      return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    };
-
-    const newLogs: string[] = [];
-    if (progress >= 0) {
-      newLogs.push(`[${timestamp()}] Initializing import pipeline...`);
-      newLogs.push(`[${timestamp()}] Checking file structure integrity...`);
-    }
-    if (progress >= 20) {
-      newLogs.push(`[${timestamp()}] Parsing file contents: headers match successfully.`);
-      if (totalRows) {
-        newLogs.push(`[${timestamp()}] Found ${totalRows.toLocaleString()} raw rows for analysis.`);
-      }
-    }
-    if (progress >= 45) {
-      newLogs.push(`[${timestamp()}] Mapping columns using AI engine...`);
-      newLogs.push(`[${timestamp()}] Matching fields: Client → Name, Whatsapp → Mobile...`);
-    }
-    if (progress >= 70) {
-      newLogs.push(`[${timestamp()}] CRM records mapped successfully.`);
-      newLogs.push(`[${timestamp()}] Batched lead profiles created in-memory.`);
-    }
-    if (progress >= 85) {
-      newLogs.push(`[${timestamp()}] Running lead validation...`);
-      newLogs.push(`[${timestamp()}] Filters applied: skipping invalid entries.`);
-    }
-    if (progress >= 95) {
-      newLogs.push(`[${timestamp()}] Compiling final output dataset...`);
-      newLogs.push(`[${timestamp()}] Import completed successfully.`);
-    }
-
-    // Only keep the last 5 logs for a clean display
-    setLogs(newLogs.slice(-5));
-  }, [progress, totalRows]);
 
   return (
     <motion.div 
@@ -160,33 +120,6 @@ export default function ProcessingOverlay({ progress, message, totalRows }: Proc
             {totalRows && (
               <span className="text-xs font-medium text-text-secondary">Processing {totalRows.toLocaleString()} rows</span>
             )}
-          </div>
-        </div>
-
-        {/* Simulated Technical Logs */}
-        <div className="flex flex-col gap-1.5 rounded-xl border border-border-subtle bg-black/[0.03] dark:bg-black/[0.2] p-3 font-mono text-[11px] text-text-secondary">
-          <div className="flex items-center gap-1.5 border-b border-border-subtle/50 pb-1.5 text-text-muted font-semibold">
-            <Terminal size={11} />
-            <span>AI IMPORTER PIPELINE LOGS</span>
-          </div>
-          <div className="flex flex-col gap-1 text-left min-h-[90px] justify-end">
-            <AnimatePresence mode="popLayout">
-              {logs.map((log, index) => (
-                <motion.div
-                  key={log}
-                  initial={{ opacity: 0, x: -5 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className={cn(
-                    "truncate leading-relaxed",
-                    index === logs.length - 1 ? "text-brand" : "text-text-muted"
-                  )}
-                >
-                  {log}
-                </motion.div>
-              ))}
-            </AnimatePresence>
           </div>
         </div>
 
