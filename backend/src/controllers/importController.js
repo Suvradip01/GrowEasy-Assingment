@@ -5,11 +5,12 @@ const { parseCsvBuffer } = require('../services/csvParser');
 const { extractCrmRecords } = require('../services/aiExtractor');
 const { normaliseRecords } = require('../services/crmMapper');
 const { getRedisClient } = require('../config/redis');
-const { success, error } = require('../utils/responseHelper');
+const { success } = require('../utils/responseHelper');
 const logger = require('../utils/logger');
 
 // Cache TTL: 1 hour (results for the same file)
 const CACHE_TTL_SECONDS = 3600;
+const PREVIEW_ROW_LIMIT = 200;
 
 /**
  * POST /api/v1/import/preview
@@ -18,11 +19,14 @@ const CACHE_TTL_SECONDS = 3600;
 const previewCsv = (req, res, next) => {
   try {
     const { headers, rows, totalRows } = parseCsvBuffer(req.file.buffer);
+    const previewRows = rows.slice(0, PREVIEW_ROW_LIMIT);
 
     return success(res, {
       headers,
-      rows,
+      rows: previewRows,
       totalRows,
+      previewRowCount: previewRows.length,
+      previewRowLimit: PREVIEW_ROW_LIMIT,
       fileName: req.file.originalname,
       fileSizeBytes: req.file.size,
     });
@@ -64,7 +68,7 @@ const processCsv = async (req, res, next) => {
     const { headers, rows, totalRows } = parseCsvBuffer(req.file.buffer);
 
     // ── Step 2: AI Extraction ──
-    const { successRecords, skippedRecords, fieldMapping, mappingConfidence } =
+    const { successRecords, skippedRecords, fieldMapping, mappingConfidence, extractionMode } =
       await extractCrmRecords(headers, rows);
 
     // ── Step 3: Normalise ──
@@ -77,6 +81,7 @@ const processCsv = async (req, res, next) => {
         totalSkipped: skippedRecords.length,
         fieldMapping,
         mappingConfidence,
+        extractionMode,
         fileName: req.file.originalname,
       },
       records: normalisedRecords,

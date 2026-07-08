@@ -53,6 +53,19 @@ const normaliseRecord = (record) => {
     out.mobile_without_country_code = out.mobile_without_country_code
       .replace(/[\s\-().+]/g, '')
       .trim();
+
+    // Strip leading country code digits (e.g. "919876543210" → "9876543210" when country_code is "+91")
+    if (out.mobile_without_country_code && out.country_code) {
+      const codeDigits = out.country_code.replace(/\D/g, '');
+      if (codeDigits && out.mobile_without_country_code.startsWith(codeDigits)) {
+        const stripped = out.mobile_without_country_code.slice(codeDigits.length);
+        // Only strip if remaining number is long enough to be valid (at least 7 digits)
+        if (stripped.length >= 7) {
+          out.mobile_without_country_code = stripped;
+        }
+      }
+    }
+
     // If it's empty after stripping, null it
     if (!out.mobile_without_country_code) {
       out.mobile_without_country_code = null;

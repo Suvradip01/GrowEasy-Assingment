@@ -8,12 +8,9 @@ import {
   Sparkles,
   FileCheck2,
   Download,
-  Brain,
-  Database,
   AlertCircle,
   Eye,
   RefreshCw,
-  Activity,
 } from 'lucide-react';
 
 import StepIndicator from '@/components/StepIndicator';
@@ -37,81 +34,13 @@ import { cn } from '@/lib/utils';
 import { buttonBase, buttonGhost, buttonPrimary, buttonSm } from '@/lib/styles';
 
 const PROGRESS_STAGES = [
-  { pct: 20, msg: 'Parsing CSV structure…', delay: 400 },
-  { pct: 40, msg: 'Gemini AI analysing schema…', delay: 1800 },
-  { pct: 60, msg: 'Extracting CRM fields in batches…', delay: 3500 },
-  { pct: 78, msg: 'Validating with Zod schema…', delay: 6000 },
-  { pct: 91, msg: 'Finalising records…', delay: 8500 },
+  { pct: 20, msg: 'Analyzing file layout…', delay: 400 },
+  { pct: 40, msg: 'Matching column fields…', delay: 1800 },
+  { pct: 60, msg: 'Extracting data records…', delay: 3500 },
+  { pct: 78, msg: 'Validating records…', delay: 6000 },
+  { pct: 91, msg: 'Finalizing formatting…', delay: 8500 },
 ];
 
-function OverviewDashboard({ onImportClick }: { onImportClick: () => void }) {
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-text-primary">Import Overview</h1>
-          <p className="mt-0.5 text-[13px] text-text-secondary">Start importing your CRM leads</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={onImportClick}
-            className="inline-flex cursor-pointer items-center gap-2 rounded-[10px] border-none bg-brand px-4 py-2 font-sans text-[13px] font-semibold text-white shadow-[0_4px_12px_rgba(249,115,22,0.25)] transition-all duration-150 hover:-translate-y-px hover:bg-brand-hover"
-          >
-            <Upload size={15} />
-            New Import
-          </motion.button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-5">
-        <div className="flex flex-col items-center justify-center gap-5">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="flex min-h-[400px] flex-col items-center justify-center px-10 py-[60px] text-center"
-          >
-            <div className="mb-8 flex h-[120px] w-[120px] items-center justify-center rounded-full bg-gradient-to-br from-[rgba(249,115,22,0.1)] to-[rgba(249,115,22,0.05)] text-brand">
-              <Upload size={64} />
-            </div>
-            <h2 className="mb-3 text-[28px] font-bold tracking-tight text-text-primary">No imports yet</h2>
-            <p className="mb-8 max-w-[480px] text-[15px] leading-relaxed text-text-secondary">
-              Start by uploading your first CSV file. Our AI will automatically map your columns to CRM
-              fields.
-            </p>
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={onImportClick}
-              className="mb-12 inline-flex cursor-pointer items-center gap-2.5 rounded-xl border-none bg-gradient-to-br from-brand to-brand-hover px-7 py-3.5 text-[15px] font-semibold text-white shadow-[0_8px_24px_rgba(249,115,22,0.3)]"
-            >
-              <Upload size={16} />
-              Upload Your First CSV
-            </motion.button>
-
-            <div className="flex flex-wrap justify-center gap-6">
-              {[
-                { icon: Brain, label: 'AI-powered field mapping' },
-                { icon: Database, label: 'Supports any CSV format' },
-                { icon: Download, label: 'Export to CRM-ready format' },
-              ].map(({ icon: Icon, label }) => (
-                <div
-                  key={label}
-                  className="flex items-center gap-2 rounded-[10px] border border-border-subtle bg-bg-card px-5 py-3 text-[13px] font-medium text-text-secondary"
-                >
-                  <Icon size={20} className="text-brand" />
-                  <span>{label}</span>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function DashboardPage() {
   const dispatch = useAppDispatch();
@@ -127,7 +56,7 @@ export default function DashboardPage() {
   const error = useAppSelector((s) => s.import.error);
   const result = useAppSelector((s) => s.import.result);
 
-  const [activeNav, setActiveNav] = useState<string>('overview');
+  const [activeNav, setActiveNav] = useState<string>('import');
 
   const fileRef = useRef<File | null>(null);
   const progressTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -203,36 +132,27 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-bg-base bg-[radial-gradient(ellipse_70%_50%_at_50%_0%,rgba(249,115,22,0.05)_0%,transparent_55%),linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[length:auto,56px_56px,56px_56px]">
+    <div className="flex min-h-screen pl-24 bg-bg-base bg-[radial-gradient(ellipse_70%_50%_at_50%_0%,rgba(249,115,22,0.05)_0%,transparent_55%),linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[length:auto,56px_56px,56px_56px]">
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-[100] flex h-[60px] items-center justify-between border-b border-border-subtle bg-[rgba(13,13,20,0.85)] px-7 backdrop-blur-xl max-md:px-4">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 text-[13px]">
-              <span className="font-semibold text-text-primary">
-                {activeNav === 'overview'
-                  ? 'Overview'
-                  : activeNav === 'import'
-                    ? `CSV Import${step > 1 ? ` / ${STEP_META[step]}` : ''}`
-                    : activeNav.charAt(0).toUpperCase() + activeNav.slice(1)}
-              </span>
-            </div>
+        {/* Centered Floating Island Status Bar */}
+        <div className="flex justify-center pt-5 pb-1">
+          <div className="inline-flex items-center gap-3.5 rounded-full border-2 border-white/[0.12] bg-[#0c0c0e]/95 px-7 py-3.5 shadow-[0_0_24px_rgba(0,0,0,0.5),0_0_15px_rgba(255,255,255,0.08)] backdrop-blur-md">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75"></span>
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-success"></span>
+            </span>
+            <span className="text-[13px] font-bold text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.35)]">
+              AI Mapping Active
+            </span>
+            <div className="h-4 w-px bg-white/20 mx-0.5" />
+            <span className="text-[13px] font-semibold text-white/70">
+              System Online
+            </span>
           </div>
-        </header>
+        </div>
 
-        <div className="flex-1 overflow-x-hidden px-7 pt-7 pb-12 max-md:px-4 max-md:pt-4 max-md:pb-10">
+        <div className="flex-1 overflow-x-hidden px-7 pt-5 pb-12 max-md:px-4 max-md:pt-4 max-md:pb-10">
           <AnimatePresence mode="wait">
-            {activeNav === 'overview' && (
-              <motion.div
-                key="overview"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                <OverviewDashboard onImportClick={() => setActiveNav('import')} />
-              </motion.div>
-            )}
-
             {activeNav === 'import' && (
               <motion.div
                 key="import"
@@ -256,18 +176,6 @@ export default function DashboardPage() {
                           : 'AI-powered field mapping from any CSV format'}
                       </p>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <div className="inline-flex items-center gap-1.5 rounded-full border border-border-brand bg-brand-dim px-3.5 py-1.5 text-xs font-semibold text-brand">
-                      <Sparkles size={12} />
-                      Gemini 2.5 Flash
-                    </div>
-                    <button
-                      className={cn(buttonBase, buttonGhost, buttonSm)}
-                      onClick={() => setActiveNav('overview')}
-                    >
-                      ← Back to Overview
-                    </button>
                   </div>
                 </div>
 
@@ -293,7 +201,7 @@ export default function DashboardPage() {
                               Upload Your CSV File
                             </h2>
                             <p className="mt-0.5 text-[13px] text-text-secondary">
-                              Any format — Facebook, Google Ads, Excel, Salesforce, or custom CSV
+                              Drop any CSV — AI maps your columns and extracts structured CRM leads
                             </p>
                           </div>
                         </div>
@@ -319,15 +227,17 @@ export default function DashboardPage() {
                           </motion.div>
                         )}
                         <div className="mt-5">
-                          <p className="mb-2.5 text-xs font-medium text-text-muted">Works with exports from:</p>
+                          <p className="mb-2.5 text-xs font-medium text-text-muted">What we extract from your CSV:</p>
                           <div className="flex flex-wrap gap-2">
                             {[
-                              'Facebook Ads',
-                              'Google Ads',
-                              'Excel / XLSX',
-                              'Salesforce',
-                              'HubSpot',
-                              'Custom CSV',
+                              'Name & Email',
+                              'Mobile & Country Code',
+                              'City / State / Country',
+                              'Lead Status',
+                              'Lead Owner',
+                              'CRM Notes',
+                              'Data Source',
+                              'Possession Time',
                             ].map((s) => (
                               <span
                                 key={s}
@@ -446,28 +356,7 @@ export default function DashboardPage() {
               </motion.div>
             )}
 
-            {!['overview', 'import'].includes(activeNav) && (
-              <motion.div
-                key="placeholder"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex min-h-[480px] flex-col items-center justify-center rounded-3xl border border-border-subtle bg-bg-surface p-10 text-center"
-              >
-                <Activity size={48} className="mb-4 text-text-muted" />
-                <h2 className="font-semibold text-text-secondary">
-                  {activeNav.charAt(0).toUpperCase() + activeNav.slice(1)} coming soon
-                </h2>
-                <p className="mt-1.5 text-sm text-text-muted">This section is under development.</p>
-                <button
-                  className={cn(buttonBase, buttonPrimary, 'mt-5')}
-                  onClick={() => setActiveNav('import')}
-                >
-                  <Upload size={14} />
-                  Import a CSV now
-                </button>
-              </motion.div>
-            )}
+
           </AnimatePresence>
         </div>
       </div>

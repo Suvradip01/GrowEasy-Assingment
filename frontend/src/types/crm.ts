@@ -42,6 +42,7 @@ export interface ImportSummary {
   totalSkipped: number;
   fieldMapping: Record<string, string>;
   mappingConfidence: number;
+  extractionMode?: 'ai_mapping_ai_batches';
   fileName: string;
 }
 
@@ -56,6 +57,8 @@ export interface PreviewResult {
   headers: string[];
   rows: Record<string, string>[];
   totalRows: number;
+  previewRowCount: number;
+  previewRowLimit: number;
   fileName: string;
   fileSizeBytes: number;
 }

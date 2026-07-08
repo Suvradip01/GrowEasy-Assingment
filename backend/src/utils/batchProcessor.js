@@ -21,6 +21,8 @@ const processBatches = async ({
   concurrency,
   retries,
   processor,
+  shouldAbort,
+  getRetryDelayMs,
 }) => {
   // Chunk items into batches
   const batches = [];
@@ -41,10 +43,18 @@ const processBatches = async ({
         chunk,
         processor,
         maxRetries: retries,
+        getRetryDelayMs,
       })
     );
 
     const batchOutcomes = await Promise.allSettled(batchPromises);
+    const abortOutcome = batchOutcomes.find(
+      (outcome) => outcome.status === 'rejected' && shouldAbort?.(outcome.reason)
+    );
+
+    if (abortOutcome) {
+      throw abortOutcome.reason;
+    }
 
     batchOutcomes.forEach((outcome, idx) => {
       const { chunk } = concurrentBatches[idx];
@@ -69,7 +79,7 @@ const processBatches = async ({
 /**
  * Runs a single batch processor with exponential backoff retries.
  */
-const runWithRetry = async ({ batchIndex, chunk, processor, maxRetries }) => {
+const runWithRetry = async ({ batchIndex, chunk, processor, maxRetries, getRetryDelayMs }) => {
   let lastError;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -80,7 +90,8 @@ const runWithRetry = async ({ batchIndex, chunk, processor, maxRetries }) => {
     } catch (err) {
       lastError = err;
       if (attempt < maxRetries) {
-        const delay = Math.pow(2, attempt - 1) * 500; // 500ms, 1000ms, 2000ms
+        const providerDelay = getRetryDelayMs?.(err);
+        const delay = providerDelay ?? Math.pow(2, attempt - 1) * 500;
         logger.warn(`Batch ${batchIndex} attempt ${attempt} failed, retrying in ${delay}ms: ${err.message}`);
         await sleep(delay);
       }

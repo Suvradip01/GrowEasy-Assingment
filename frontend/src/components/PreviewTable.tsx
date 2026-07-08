@@ -1,7 +1,6 @@
 'use client';
 
-import React from 'react';
-import { FixedSizeList as List } from 'react-window';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Database } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -14,43 +13,25 @@ interface PreviewTableProps {
 }
 
 const ROW_HEIGHT = 44;
-const VISIBLE_ROWS = 12;
+const VISIBLE_ROWS = 10;
 const COL_WIDTH = 180;
+const OVERSCAN = 6;
 
 export default function PreviewTable({ headers, rows, totalRows, fileName }: PreviewTableProps) {
-  const tableWidth = Math.max(headers.length * COL_WIDTH, 600);
-
-  const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
-    const row = rows[index];
-    const isEven = index % 2 === 0;
-    return (
-      <div
-        style={{ ...style, width: tableWidth }}
-        className={cn(
-          'flex min-h-[42px] items-center transition-colors duration-150 hover:!bg-bg-elevated',
-          isEven ? 'bg-bg-surface' : 'bg-bg-card'
-        )}
-      >
-        <div className="flex w-11 shrink-0 items-center justify-center text-xs font-medium text-text-muted">
-          {index + 1}
-        </div>
-        {headers.map((h) => (
-          <div
-            key={h}
-            className="flex h-[42px] shrink-0 items-center border-l border-border-subtle px-4"
-            style={{ minWidth: COL_WIDTH }}
-          >
-            <span
-              className="block max-w-[160px] truncate text-[13px] text-text-primary"
-              title={row[h] || ''}
-            >
-              {row[h] || <span className="text-text-muted">—</span>}
-            </span>
-          </div>
-        ))}
-      </div>
-    );
-  };
+  const [scrollTop, setScrollTop] = useState(0);
+  const tableWidth = Math.max(headers.length * COL_WIDTH + 44, 600);
+  const viewportHeight = Math.min(VISIBLE_ROWS, Math.max(rows.length, 1)) * ROW_HEIGHT;
+  const totalHeight = rows.length * ROW_HEIGHT;
+  const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+  const endIndex = Math.min(
+    rows.length,
+    Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT) + OVERSCAN
+  );
+  const visibleRows = useMemo(
+    () => rows.slice(startIndex, endIndex),
+    [rows, startIndex, endIndex]
+  );
+  const isSampledPreview = rows.length < totalRows;
 
   return (
     <motion.div
@@ -76,38 +57,68 @@ export default function PreviewTable({ headers, rows, totalRows, fileName }: Pre
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <div className="w-full overflow-x-hidden border-b border-border-subtle">
-          <div className="flex min-h-[42px] items-center bg-bg-elevated" style={{ width: tableWidth }}>
+      <div
+        className="overflow-x-auto overflow-y-auto"
+        style={{ maxHeight: VISIBLE_ROWS * ROW_HEIGHT }}
+        onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+      >
+        <div style={{ width: tableWidth, minWidth: '100%' }}>
+          <div className="sticky top-0 z-10 flex min-h-[42px] items-center border-b border-border-subtle bg-bg-elevated">
             <div className="flex w-11 shrink-0 items-center justify-center px-2 text-[11px] font-semibold text-text-muted">
               #
             </div>
-            {headers.map((h) => (
+            {headers.map((header) => (
               <div
-                key={h}
-                className="flex h-[42px] shrink-0 items-center border-l border-border-subtle px-4 text-[11px] font-bold tracking-wide text-brand uppercase"
+                key={header}
+                className="flex h-[42px] shrink-0 items-center border-l border-border-subtle px-4 text-[11px] font-bold uppercase tracking-wide text-brand"
                 style={{ minWidth: COL_WIDTH }}
               >
-                {h}
+                {header}
               </div>
             ))}
           </div>
-        </div>
 
-        <List
-          height={Math.min(rows.length, VISIBLE_ROWS) * ROW_HEIGHT}
-          itemCount={rows.length}
-          itemSize={ROW_HEIGHT}
-          width="100%"
-          style={{ overflowX: 'auto' }}
-        >
-          {Row}
-        </List>
+          <div className="relative" style={{ height: totalHeight }}>
+            {visibleRows.map((row, offset) => {
+              const index = startIndex + offset;
+              return (
+                <div
+                  key={index}
+                  className={cn(
+                    'absolute left-0 flex h-[44px] items-center transition-colors duration-150 hover:bg-bg-elevated',
+                    index % 2 === 0 ? 'bg-bg-surface' : 'bg-bg-card'
+                  )}
+                  style={{ top: index * ROW_HEIGHT, width: tableWidth, minWidth: '100%' }}
+                >
+                  <div className="flex w-11 shrink-0 items-center justify-center text-xs font-medium text-text-muted">
+                    {index + 1}
+                  </div>
+                  {headers.map((header) => (
+                    <div
+                      key={header}
+                      className="flex h-[42px] shrink-0 items-center border-l border-border-subtle px-4"
+                      style={{ minWidth: COL_WIDTH }}
+                    >
+                      <span
+                        className="block max-w-[160px] truncate text-[13px] text-text-primary"
+                        title={row[header] || ''}
+                      >
+                        {row[header] || <span className="text-text-muted">-</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      {rows.length > VISIBLE_ROWS && (
+      {(rows.length > VISIBLE_ROWS || isSampledPreview) && (
         <p className="border-t border-border-subtle px-[18px] py-2.5 text-center text-xs text-text-muted">
-          Scroll to view all {totalRows.toLocaleString()} rows
+          {isSampledPreview
+            ? `Showing first ${rows.length.toLocaleString()} rows of ${totalRows.toLocaleString()} total rows for fast preview`
+            : `Scroll to view all ${totalRows.toLocaleString()} rows`}
         </p>
       )}
     </motion.div>

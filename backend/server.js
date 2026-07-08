@@ -15,7 +15,7 @@ const startServer = async () => {
   }
 
   const server = app.listen(config.server.port, () => {
-    logger.info(`🚀 GrowEasy CSV Importer API`);
+    logger.info(`   GrowEasy CSV Importer API`);
     logger.info(`   Environment : ${config.server.nodeEnv}`);
     logger.info(`   Port        : ${config.server.port}`);
     logger.info(`   Health      : http://localhost:${config.server.port}/api/v1/health`);

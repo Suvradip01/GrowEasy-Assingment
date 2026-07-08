@@ -6,15 +6,15 @@ An intelligent, AI-powered CSV importer built for GrowEasy CRM. It ingests messy
 
 **Frontend:** Next.js (App Router), React, Redux Toolkit, Framer Motion, Tailwind CSS-like custom design system (Dark mode, Glassmorphism).
 **Backend:** Node.js, Express, PapaParse (for CSV parsing), Multer.
-**AI Integration:** Google Gemini (1.5 Flash) via `@google/generative-ai` with structured JSON schema (`responseSchema`) and Zod validation.
+**AI Integration:** Google Gemini 2.5 Flash via `@google/generative-ai` with structured JSON schema (`responseSchema`) and Zod validation.
 **Caching & Rate Limiting:** Redis (ioredis), Express-Rate-Limit.
 **Infrastructure:** Nginx Reverse Proxy, Docker, Docker Compose.
 
 ## Features
 
 - **Intelligent Field Mapping**: Automatically maps any column name to CRM fields using AI (e.g. "Mobile Number" to `mobile_without_country_code`).
-- **Batch Processing**: Uses a scalable batch processing strategy with exponential backoff and retries to avoid API rate limits and ensure robust extraction.
-- **Structured JSON output**: Leverages Gemini's exact structured JSON generation constraint (no prompt hacking) to guarantee 100% valid parsing.
+- **AI Batch Processing**: Sends CSV records to Gemini in configurable batches with exponential backoff and retries.
+- **Structured JSON output**: Uses Gemini structured JSON responses plus Zod validation to keep the API contract predictable.
 - **Zod Validation**: An extra layer of validation on top of AI output to maintain data integrity.
 - **High-Performance UI**: Responsive design with Framer Motion animations, virtualized table rendering (for handling large files smoothly), and a sleek modern aesthetic.
 - **Robustness**: Redis-backed rate limiter, duplicate caching (prevents AI re-processing the same file in a row), and extensive error handling.
@@ -67,8 +67,8 @@ The frontend will be running on `http://localhost:3000` and backend on `http://l
 ## Architecture Details
 
 - **Two-Stage AI Extraction**:
-  1. **Schema Discovery**: Evaluates headers and 3 sample rows once per upload to generate a field mapping (saves tokens).
-  2. **Batch Records Extraction**: Uses the discovered mapping and handles edge cases/ambiguities by passing data in small batches of 25 to the LLM.
+  1. **Schema Discovery**: Evaluates headers and sample rows once per upload to generate a field mapping.
+  2. **Batch Records Extraction**: Uses the discovered mapping and sends records in small batches of 25 to the LLM.
 - **Normalization Strategy**: After extraction, strict normalizer sanitizes emails, dates, and phone numbers before displaying.
 - **Nginx Proxy**: Ensures a single port for the client, while distributing traffic properly to the frontend and backend with timeouts optimized for AI tasks.
 

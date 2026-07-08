@@ -33,6 +33,16 @@ const errorHandler = (err, req, res, _next) => {
     return res.status(400).json({ success: false, message: err.message });
   }
 
+  // AI rate-limit / quota-exhaustion errors — propagate useful fields to frontend
+  if (err.code === 'AI_RATE_LIMITED' || err.code === 'AI_QUOTA_EXHAUSTED') {
+    return res.status(err.statusCode || 429).json({
+      success: false,
+      message: err.message,
+      code: err.code,
+      retryAfterSeconds: err.retryAfterSeconds || null,
+    });
+  }
+
   // Default 500
   res.status(err.statusCode || 500).json({
     success: false,

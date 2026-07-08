@@ -1,0 +1,7 @@
+Name,Email,Phone,Country Code,Status,Source,City,State,Notes,Created
+John Doe,john.doe@example.com,9876543210,+91,Good Lead,leads_on_demand,Bengaluru,Karnataka,Interested in 2BHK,2026-01-15
+Sarah Smith,sarah.smith@example.com,8765432109,+91,DID_NOT_CONNECT,meridian_tower,Mumbai,Maharashtra,Called twice no answer,2026-02-20
+Bob Johnson,bob@test.com,7654321098,+44,BAD_LEAD,,London,England,Wrong number provided,2026-03-10
+Alice Brown,alice.brown@corp.com,6543210987,+1,SALE_DONE,eden_park,New York,NY,Deal closed at 1.2Cr,2026-04-05
+,,,+91,,,,,No email or mobile,2026-05-01
+Eve Davis,eve.davis@example.com,5432109876,+91,Good Lead,sarjapur_plots,Hyderabad,Telangana,Follow up next week,2026-06-12
