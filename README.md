@@ -338,5 +338,6 @@ Starts: Redis → Backend → Frontend → Nginx (port 80).
 
 ## Author
 
-Built for the GrowEasy Software Developer Assignment.
-Applied position: **Full-Time**
+Built as part of the GrowEasy Software Developer Assignment.
+
+Developed by Suvradip Ghosh.
