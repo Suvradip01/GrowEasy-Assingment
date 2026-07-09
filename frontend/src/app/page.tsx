@@ -304,34 +304,26 @@ export default function LandingPage() {
             </div>
           </div>
  
-          {/* Links Section */}
-          <div className="mb-16 grid grid-cols-2 gap-8 sm:grid-cols-2 md:grid-cols-4">
-            <div className="flex flex-col gap-4">
-              <span className="text-xs font-bold uppercase tracking-wider text-white/40">Get in touch</span>
-              <div className="flex flex-col gap-2.5 text-[14px]">
-                <a href="mailto:hello@groweasy.ai" className="text-white/60 hover:text-brand transition-colors duration-200">hello@groweasy.ai</a>
-                <a href="mailto:support@groweasy.ai" className="text-white/60 hover:text-brand transition-colors duration-200">support@groweasy.ai</a>
-              </div>
-            </div>
-            <div className="flex flex-col gap-4">
+          <div className="mb-16 grid grid-cols-3 gap-8 max-md:grid-cols-1 justify-items-center text-center">
+            <div className="flex flex-col items-center gap-4">
               <span className="text-xs font-bold uppercase tracking-wider text-white/40">Connect</span>
-              <div className="flex flex-col gap-2.5 text-[14px]">
+              <div className="flex flex-col items-center gap-2.5 text-[14px]">
                 <a href="#" className="text-white/60 hover:text-brand transition-colors duration-200">LinkedIn</a>
                 <a href="#" className="text-white/60 hover:text-brand transition-colors duration-200">Twitter / X</a>
                 <a href="#" className="text-white/60 hover:text-brand transition-colors duration-200">Instagram</a>
               </div>
             </div>
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col items-center gap-4">
               <span className="text-xs font-bold uppercase tracking-wider text-white/40">Product</span>
-              <div className="flex flex-col gap-2.5 text-[14px]">
+              <div className="flex flex-col items-center gap-2.5 text-[14px]">
                 <a href="/dashboard" className="text-white/60 hover:text-brand transition-colors duration-200">AI CSV Importer</a>
                 <a href="#features" className="text-white/60 hover:text-brand transition-colors duration-200">Field Mapping</a>
                 <a href="#how" className="text-white/60 hover:text-brand transition-colors duration-200">CRM Integrations</a>
               </div>
             </div>
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col items-center gap-4">
               <span className="text-xs font-bold uppercase tracking-wider text-white/40">Company</span>
-              <div className="flex flex-col gap-2.5 text-[14px]">
+              <div className="flex flex-col items-center gap-2.5 text-[14px]">
                 <span className="text-white/60">GrowEasy Inc.</span>
                 <a href="#" className="text-white/60 hover:text-brand transition-colors duration-200">Data Privacy</a>
                 <a href="#" className="text-white/60 hover:text-brand transition-colors duration-200">Imprint</a>
@@ -340,12 +332,6 @@ export default function LandingPage() {
           </div>
  
           {/* Bottom Meta */}
-          <div className="flex flex-col items-center justify-between gap-4 border-t border-white/[0.05] pt-8 md:flex-row">
-            <div className="flex flex-col items-center gap-1.5 text-xs text-white/30 md:items-start">
-              <span className="font-medium text-white/50">Powered by GrowEasy AI Engine</span>
-              <span>© 2026 GrowEasy. All rights reserved.</span>
-            </div>
-          </div>
         </div>
       </footer>
     </div>

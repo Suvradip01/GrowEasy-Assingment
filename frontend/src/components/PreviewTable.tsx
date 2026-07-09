@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Database } from 'lucide-react';
+import { Database, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PreviewTableProps {
@@ -12,26 +12,29 @@ interface PreviewTableProps {
   fileName: string;
 }
 
-const ROW_HEIGHT = 44;
-const VISIBLE_ROWS = 10;
 const COL_WIDTH = 180;
-const OVERSCAN = 6;
+const PREVIEW_PAGE_SIZE = 100;
 
 export default function PreviewTable({ headers, rows, totalRows, fileName }: PreviewTableProps) {
-  const [scrollTop, setScrollTop] = useState(0);
+  const [page, setPage] = useState(1);
   const tableWidth = Math.max(headers.length * COL_WIDTH + 44, 600);
-  const viewportHeight = Math.min(VISIBLE_ROWS, Math.max(rows.length, 1)) * ROW_HEIGHT;
-  const totalHeight = rows.length * ROW_HEIGHT;
-  const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
-  const endIndex = Math.min(
-    rows.length,
-    Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT) + OVERSCAN
-  );
-  const visibleRows = useMemo(
-    () => rows.slice(startIndex, endIndex),
-    [rows, startIndex, endIndex]
-  );
   const isSampledPreview = rows.length < totalRows;
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / PREVIEW_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const visibleRows = useMemo(() => {
+    const start = (safePage - 1) * PREVIEW_PAGE_SIZE;
+    return rows.slice(start, start + PREVIEW_PAGE_SIZE);
+  }, [rows, safePage]);
+
+  const rowStart = (safePage - 1) * PREVIEW_PAGE_SIZE;
+  const start = rows.length === 0 ? 0 : rowStart + 1;
+  const end = Math.min(safePage * PREVIEW_PAGE_SIZE, rows.length);
 
   return (
     <motion.div
@@ -40,6 +43,7 @@ export default function PreviewTable({ headers, rows, totalRows, fileName }: Pre
       transition={{ duration: 0.35 }}
       className="overflow-hidden rounded-2xl border border-border-subtle bg-bg-surface"
     >
+      {/* Header bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle px-[18px] py-3.5">
         <div className="flex min-w-0 items-center gap-2">
           <Database size={16} className="shrink-0 text-brand" />
@@ -57,12 +61,46 @@ export default function PreviewTable({ headers, rows, totalRows, fileName }: Pre
         </div>
       </div>
 
+      {/* Pagination — sits above the table */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle bg-bg-card px-4 py-3 text-xs text-text-secondary">
+        <span>
+          {isSampledPreview
+            ? <>Showing {start.toLocaleString()}–{end.toLocaleString()} of {rows.length.toLocaleString()} preview rows <span className="text-text-muted">(file has {totalRows.toLocaleString()} total)</span></>
+            : <>Showing {start.toLocaleString()}–{end.toLocaleString()} of {rows.length.toLocaleString()}</>
+          }
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={safePage <= 1}
+            onClick={() => setPage(safePage - 1)}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] border border-border-default bg-bg-elevated text-text-primary transition-colors disabled:cursor-not-allowed disabled:opacity-40 hover:border-brand"
+            title="Previous page"
+          >
+            <ChevronLeft size={15} />
+          </button>
+          <span className="min-w-[88px] text-center font-semibold text-text-primary">
+            Page {safePage} / {totalPages}
+          </span>
+          <button
+            type="button"
+            disabled={safePage >= totalPages}
+            onClick={() => setPage(safePage + 1)}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] border border-border-default bg-bg-elevated text-text-primary transition-colors disabled:cursor-not-allowed disabled:opacity-40 hover:border-brand"
+            title="Next page"
+          >
+            <ChevronRight size={15} />
+          </button>
+        </div>
+      </div>
+
+      {/* Table: outer div scrolls horizontally, inner div scrolls vertically with fixed height */}
       <div
-        className="overflow-x-auto overflow-y-auto"
-        style={{ maxHeight: VISIBLE_ROWS * ROW_HEIGHT }}
-        onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+        className="preview-scroll overflow-x-scroll"
+        style={{ scrollbarGutter: 'stable' }}
       >
         <div style={{ width: tableWidth, minWidth: '100%' }}>
+          {/* Sticky column header */}
           <div className="sticky top-0 z-10 flex min-h-[42px] items-center border-b border-border-subtle bg-bg-elevated">
             <div className="flex w-11 shrink-0 items-center justify-center px-2 text-[11px] font-semibold text-text-muted">
               #
@@ -78,17 +116,19 @@ export default function PreviewTable({ headers, rows, totalRows, fileName }: Pre
             ))}
           </div>
 
-          <div className="relative" style={{ height: totalHeight }}>
+          {/* Rows — fixed height container, vertical scroll inside */}
+          <div className="overflow-y-auto" style={{ maxHeight: 440 }}>
             {visibleRows.map((row, offset) => {
-              const index = startIndex + offset;
+              const index = rowStart + offset;
               return (
                 <div
                   key={index}
                   className={cn(
-                    'absolute left-0 flex h-[44px] items-center transition-colors duration-150 hover:bg-bg-elevated',
+                    'flex h-[44px] items-center transition-colors duration-150 hover:bg-bg-elevated',
+                    offset < visibleRows.length - 1 && 'border-b border-border-subtle',
                     index % 2 === 0 ? 'bg-bg-surface' : 'bg-bg-card'
                   )}
-                  style={{ top: index * ROW_HEIGHT, width: tableWidth, minWidth: '100%' }}
+                  style={{ width: tableWidth, minWidth: '100%' }}
                 >
                   <div className="flex w-11 shrink-0 items-center justify-center text-xs font-medium text-text-muted">
                     {index + 1}
@@ -113,14 +153,6 @@ export default function PreviewTable({ headers, rows, totalRows, fileName }: Pre
           </div>
         </div>
       </div>
-
-      {(rows.length > VISIBLE_ROWS || isSampledPreview) && (
-        <p className="border-t border-border-subtle px-[18px] py-2.5 text-center text-xs text-text-muted">
-          {isSampledPreview
-            ? `Showing first ${rows.length.toLocaleString()} rows of ${totalRows.toLocaleString()} total rows for fast preview`
-            : `Scroll to view all ${totalRows.toLocaleString()} rows`}
-        </p>
-      )}
     </motion.div>
   );
 }

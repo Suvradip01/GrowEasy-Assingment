@@ -46,13 +46,15 @@ export const previewCsv = async (file: File) => {
  */
 export const processCsv = async (
   file: File,
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
+  signal?: AbortSignal
 ) => {
   const formData = new FormData();
   formData.append('file', file);
 
   const response = await apiClient.post('/import/process', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    signal,
     onUploadProgress: (progressEvent) => {
       if (progressEvent.total && onProgress) {
         // Upload is only a small fraction of total work (AI takes most time)

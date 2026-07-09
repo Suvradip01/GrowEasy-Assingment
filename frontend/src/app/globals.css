@@ -118,6 +118,25 @@
   ::-webkit-scrollbar-thumb:hover {
     background: var(--text-muted);
   }
+
+  /* Preview table — always-visible horizontal scrollbar with stronger contrast */
+  .preview-scroll::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  .preview-scroll::-webkit-scrollbar-track {
+    background: var(--bg-elevated);
+    border-radius: 9999px;
+  }
+
+  .preview-scroll::-webkit-scrollbar-thumb {
+    background: var(--text-muted);
+    border-radius: 9999px;
+  }
+
+  .preview-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+  }
 }
 
 @keyframes spin {
