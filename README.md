@@ -1,6 +1,6 @@
 # GrowEasy — AI-Powered CSV Importer
 
-[Live Demo](#) | [Backend API](#) | [GitHub](#) | [Architecture](#system-architecture) | [Screenshots](#)
+[Live Demo](https://suvradip-groweasy-frontend.vercel.app/) | [Architecture](#system-architecture)
 
 An intelligent CSV importer that accepts messy, unstructured CSVs from any source — Facebook Ads, Google Ads, Excel, Real Estate CRMs, custom spreadsheets — and maps them to structured GrowEasy CRM leads using Google Gemini 2.5 Flash.
 
