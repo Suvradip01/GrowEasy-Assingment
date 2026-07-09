@@ -1,32 +1,54 @@
 'use client';
 
 import React from 'react';
-
-const steps = [
-  { step: '1', title: 'Upload Data', desc: 'Drag and drop any CSV file into the secure import zone.' },
-  { step: '2', title: 'Review Schema', desc: 'Verify the column names detected by our system.' },
-  { step: '3', title: 'AI Extraction', desc: 'Our AI processes your data, filling gaps and standardizing formats.' },
-  { step: '4', title: 'Download Leads', desc: 'Get a clean, 100% formatted CSV ready for GrowEasy CRM.' },
-];
+import { motion } from 'framer-motion';
 
 export default function HowItWorksSection() {
   return (
-    <section className="bg-bg-elevated px-5 py-16 md:px-10 md:py-24">
-      <div className="mx-auto max-w-[1100px]">
-        <h2 className="mb-10 text-center text-[clamp(24px,3vw,34px)] font-extrabold tracking-tight text-text-primary">
+    <section id="how" className="bg-bg-card px-5 py-12 md:px-10 md:py-20 border-y border-border-subtle">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        className="mb-12 text-center"
+      >
+        <h2 className="mb-2.5 text-[clamp(24px,3vw,38px)] font-extrabold tracking-tight text-text-primary">
           How it works
         </h2>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-4">
-          {steps.map((s, i) => (
-            <div key={i} className="relative rounded-2xl border border-border-default bg-bg-card p-6 shadow-sm">
-              <span className="absolute -top-[14px] left-[20px] flex h-[28px] w-[28px] items-center justify-center rounded-full bg-brand text-xs font-bold text-white">
-                {s.step}
-              </span>
-              <h4 className="mb-1.5 mt-2 text-base font-bold text-text-primary">{s.title}</h4>
-              <p className="text-[13px] leading-relaxed text-text-secondary">{s.desc}</p>
-            </div>
-          ))}
-        </div>
+        <p className="text-base text-text-secondary">Three steps. Under 30 seconds.</p>
+      </motion.div>
+
+      <div className="mx-auto grid max-w-[900px] grid-cols-1 gap-7 md:grid-cols-3 md:gap-10">
+        {[
+          {
+            n: '01',
+            title: 'Upload any CSV',
+            desc: 'Drag & drop or click to upload. Facebook, Google Ads, Excel — any format.',
+          },
+          {
+            n: '02',
+            title: 'AI maps your fields',
+            desc: 'Our advanced AI automatically analyzes your columns and maps them to CRM fields with maximum accuracy.',
+          },
+          {
+            n: '03',
+            title: 'Review & export',
+            desc: 'See extracted leads, review skipped rows with reasons, and download a clean CRM-ready CSV.',
+          },
+        ].map((step, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, x: -20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: i * 0.15 }}
+            className="flex flex-col gap-3"
+          >
+            <span className="text-[13px] font-extrabold tracking-wide text-brand">{step.n}</span>
+            <h3 className="text-lg font-bold text-text-primary">{step.title}</h3>
+            <p className="text-sm leading-relaxed text-text-secondary">{step.desc}</p>
+          </motion.div>
+        ))}
       </div>
     </section>
   );
