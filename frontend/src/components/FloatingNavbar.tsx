@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Home, Sparkles, Zap, HelpCircle, Info, LucideIcon } from 'lucide-react';
+import { Home, Zap, HelpCircle, Info, LucideIcon } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { cn } from '@/lib/utils';
 
@@ -161,16 +161,6 @@ export default function FloatingNavbar() {
 
   return (
     <nav className="group fixed left-5 top-1/2 z-[1000] flex min-h-fit w-16 -translate-y-1/2 flex-col gap-2 overflow-hidden rounded-2xl border border-border-default bg-bg-glass py-4 px-3 shadow-[0_8px_32px_rgba(0,0,0,0.15)] backdrop-blur-xl transition-[width] duration-250 ease-in-out hover:w-[220px]">
-
-      {/* Logo row */}
-      <div className="mb-2 flex items-center gap-3 p-2">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br from-brand to-brand-hover text-white">
-          <Sparkles size={20} />
-        </div>
-        <span className="whitespace-nowrap text-[15px] font-bold text-text-primary opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-          GrowEasy
-        </span>
-      </div>
 
       {/* Nav items */}
       <div className="flex flex-1 flex-col gap-1">
