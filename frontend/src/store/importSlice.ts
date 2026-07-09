@@ -63,10 +63,12 @@ const importSlice = createSlice({
       state.progress = action.payload.progress;
       state.progressMessage = action.payload.message;
     },
-    setError(state, action: PayloadAction<string>) {
+    setError(state, action: PayloadAction<string | null>) {
       state.error = action.payload;
-      state.loading = false;
-      state.progress = 0;
+      if (action.payload !== null) {
+        state.loading = false;
+        state.progress = 0;
+      }
     },
     setResult(
       state,
