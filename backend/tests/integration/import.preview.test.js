@@ -83,16 +83,15 @@ describe('POST /api/v1/import/preview — integration', () => {
 
   // ── Edge cases ──────────────────────────────────────────────────────────────
 
-  it('handles an empty CSV (headers only) gracefully', async () => {
+  it('rejects an empty CSV (headers only) with 400', async () => {
     const emptyBuffer = Buffer.from('Name,Email,Phone\n');
     const res = await request(app)
       .post('/api/v1/import/preview')
       .attach('file', emptyBuffer, { filename: 'empty.csv', contentType: 'text/csv' });
 
-    expect(res.statusCode).toBe(200);
-    expect(res.body.data.totalRows).toBe(0);
-    expect(res.body.data.rows).toHaveLength(0);
-    expect(res.body.data.headers).toEqual(['Name', 'Email', 'Phone']);
+    // Headers-only CSV has no data rows — correctly rejected by validateCsv middleware
+    expect(res.statusCode).toBe(400);
+    expect(res.body.success).toBe(false);
   });
 });
 

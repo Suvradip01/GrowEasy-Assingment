@@ -32,35 +32,40 @@ export default function SkippedTable({
 
   return (
     <div className="overflow-hidden rounded-[10px] border border-border-subtle bg-bg-surface">
-      <div className="flex flex-col gap-2 p-3">
-        {visibleSkipped.map((item, offset) => {
-          const globalIndex = skippedStart + offset;
-          return (
-            <div
-              key={globalIndex}
-              className="flex items-start gap-3 rounded-[10px] border border-[rgba(239,68,68,0.13)] bg-[rgba(239,68,68,0.04)] px-[15px] py-2"
-            >
-              <XCircle size={16} className="mt-0.5 shrink-0 text-error" />
-              <div className="min-w-0">
-                <p className="mb-1 truncate text-[13px] font-semibold text-error">{item.reason}</p>
-                <p className="truncate text-xs leading-relaxed text-text-muted">
-                  {Object.entries(item.data as Record<string, unknown>)
-                    .filter(([, value]) => value)
-                    .slice(0, 4)
-                    .map(([key, value]) => `${key}: ${value}`)
-                    .join(' | ')}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {/* Pagination — sits above the table */}
       <PaginationControls
         page={safeSkippedPage}
         totalPages={totalSkippedPages}
         totalItems={skipped.length}
         onPageChange={onPageChange}
       />
+
+      {/* Table: fixed height container, vertical scroll inside */}
+      <div className="overflow-y-auto" style={{ maxHeight: 440, scrollbarGutter: 'stable' }}>
+        <div className="flex flex-col gap-2 p-3">
+          {visibleSkipped.map((item, offset) => {
+            const globalIndex = skippedStart + offset;
+            return (
+              <div
+                key={globalIndex}
+                className="flex items-start gap-3 rounded-[10px] border border-[rgba(239,68,68,0.13)] bg-[rgba(239,68,68,0.04)] px-[15px] py-2"
+              >
+                <XCircle size={16} className="mt-0.5 shrink-0 text-error" />
+                <div className="min-w-0">
+                  <p className="mb-1 truncate text-[13px] font-semibold text-error">{item.reason}</p>
+                  <p className="truncate text-xs leading-relaxed text-text-muted">
+                    {Object.entries(item.data as Record<string, unknown>)
+                      .filter(([, value]) => value)
+                      .slice(0, 4)
+                      .map(([key, value]) => `${key}: ${value}`)
+                      .join(' | ')}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

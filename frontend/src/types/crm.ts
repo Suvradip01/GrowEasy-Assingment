@@ -13,6 +13,13 @@ export type DataSource =
   | 'varah_swamy'
   | 'sarjapur_plots';
 
+/**
+ * The pipeline mode used during extraction:
+ *   'standard'  — Full Gemini batch extraction (rows ≤ MAX_FULL_AI_ROWS)
+ *   'optimized' — AI-assisted schema + JS mapping (rows > MAX_FULL_AI_ROWS)
+ */
+export type ProcessingMode = 'standard' | 'optimized';
+
 export interface CrmRecord {
   created_at: string | null;
   name: string | null;
@@ -42,7 +49,8 @@ export interface ImportSummary {
   totalSkipped: number;
   fieldMapping: Record<string, string>;
   mappingConfidence: number;
-  extractionMode?: 'ai_mapping_ai_batches';
+  extractionMode?: string;
+  processingMode?: ProcessingMode;
   fileName: string;
 }
 
@@ -61,6 +69,18 @@ export interface PreviewResult {
   previewRowLimit: number;
   fileName: string;
   fileSizeBytes: number;
+}
+
+/** SSE progress event payload from GET /api/v1/import/progress/:clientId */
+export interface ProgressEvent {
+  /** 0–100 progress percentage; -1 signals an error */
+  progress: number;
+  /** Human-readable status message */
+  message: string;
+  /** Active mode label (e.g., "Standard AI" | "Production-Optimized AI" | null) */
+  mode: string | null;
+  /** Fine-grained detail (e.g., "Batch 4 / 20" | "12,000 / 50,000 rows") */
+  details: string | null;
 }
 
 // Step wizard steps

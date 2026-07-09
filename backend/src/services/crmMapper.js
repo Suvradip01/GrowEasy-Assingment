@@ -40,19 +40,20 @@ const normaliseRecord = (record) => {
   }
 
   // ── email: lowercase and trim ──
-  if (out.email) {
+  if (out.email !== undefined && out.email !== null) {
     out.email = out.email.toLowerCase().trim();
-    // Basic email format sanity check
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(out.email)) {
+    // Null empty strings or invalid format
+    if (!out.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(out.email)) {
       out.email = null;
     }
   }
 
-  // ── mobile: strip spaces, dashes, parentheses ──
+  // ── mobile: strip spaces, dashes, parentheses, leading + ──
   if (out.mobile_without_country_code) {
     out.mobile_without_country_code = out.mobile_without_country_code
       .replace(/[\s\-().+]/g, '')
-      .trim();
+      .trim()
+      .replace(/^0+/, ''); // Strip leading zeros (country code artifact)
 
     // Strip leading country code digits (e.g. "919876543210" → "9876543210" when country_code is "+91")
     if (out.mobile_without_country_code && out.country_code) {
@@ -81,8 +82,10 @@ const normaliseRecord = (record) => {
   }
 
   // ── crm_status: validate against allowed values ──
-  if (out.crm_status && !VALID_STATUSES.has(out.crm_status)) {
-    out.crm_status = null;
+  if (out.crm_status !== undefined && out.crm_status !== null) {
+    if (!out.crm_status || !VALID_STATUSES.has(out.crm_status)) {
+      out.crm_status = null;
+    }
   }
 
   // ── data_source: validate against allowed values ──

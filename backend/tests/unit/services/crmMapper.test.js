@@ -33,7 +33,7 @@ describe('crmMapper — normaliseRecord', () => {
   describe('mobile normalisation', () => {
     it('strips spaces, dashes, parentheses and plus from mobile', () => {
       const result = normaliseRecord({ mobile_without_country_code: '+91 98765-43210' });
-      expect(result.mobile_without_country_code).toBe('9198765432');
+      expect(result.mobile_without_country_code).toBe('919876543210');
     });
 
     it('strips leading country code digits when country_code matches', () => {

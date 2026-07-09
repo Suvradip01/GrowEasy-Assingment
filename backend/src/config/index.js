@@ -35,6 +35,13 @@ const config = {
     batchSize: parseInt(process.env.AI_BATCH_SIZE, 10) || 25,
     concurrency: parseInt(process.env.AI_CONCURRENCY, 10) || 3,
     retryAttempts: parseInt(process.env.AI_RETRY_ATTEMPTS, 10) || 3,
+    /**
+     * Row threshold for selecting the extraction pipeline:
+     *   rows <= maxFullAiRows  → Standard AI Mode   (AI batch extraction per-row)
+     *   rows >  maxFullAiRows  → Production-Optimized Mode (AI-assisted mapping + JS extraction)
+     * Configurable via MAX_FULL_AI_ROWS env variable.
+     */
+    maxFullAiRows: parseInt(process.env.MAX_FULL_AI_ROWS, 10) || 500,
   },
 
   rateLimit: {

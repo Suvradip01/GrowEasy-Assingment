@@ -1,17 +1,18 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Upload,
   ArrowRight,
   Sparkles,
   FileCheck2,
-  Download,
   AlertCircle,
   Eye,
   RefreshCw,
   X,
+  Clock,
+  Zap,
 } from 'lucide-react';
 
 import StepIndicator from '@/components/StepIndicator';
@@ -20,32 +21,13 @@ import PreviewTable from '@/components/PreviewTable';
 import ProcessingOverlay from '@/components/ProcessingOverlay';
 import ResultTable from '@/components/ResultTable';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import {
-  setFileInfo,
-  setPreviewData,
-  setLoading,
-  setProgress,
-  setError,
-  setResult,
-  setStep,
-  reset,
-} from '@/store/importSlice';
-import { previewCsv, processCsv } from '@/services/api';
+import { setError, setQuotaError, setStep } from '@/store/importSlice';
+import { useImportPipeline } from '@/hooks/useImportPipeline';
 import { cn } from '@/lib/utils';
 import { buttonBase, buttonGhost, buttonPrimary, buttonSm } from '@/lib/styles';
 
-const PROGRESS_STAGES = [
-  { pct: 20, msg: 'Analyzing file layout…', delay: 400 },
-  { pct: 40, msg: 'Matching column fields…', delay: 1800 },
-  { pct: 60, msg: 'Extracting data records…', delay: 3500 },
-  { pct: 78, msg: 'Validating records…', delay: 6000 },
-  { pct: 91, msg: 'Finalizing formatting…', delay: 8500 },
-];
-
-
 export default function DashboardPage() {
   const dispatch = useAppDispatch();
-
   const step = useAppSelector((s) => s.import.step);
   const fileName = useAppSelector((s) => s.import.fileName);
   const totalRows = useAppSelector((s) => s.import.totalRows);
@@ -54,107 +36,16 @@ export default function DashboardPage() {
   const loading = useAppSelector((s) => s.import.loading);
   const progress = useAppSelector((s) => s.import.progress);
   const progressMessage = useAppSelector((s) => s.import.progressMessage);
+  const processingMode = useAppSelector((s) => s.import.processingMode);
+  const progressDetails = useAppSelector((s) => s.import.progressDetails);
   const error = useAppSelector((s) => s.import.error);
+  const quotaError = useAppSelector((s) => s.import.quotaError);
   const result = useAppSelector((s) => s.import.result);
 
-  const [activeNav, setActiveNav] = useState<string>('import');
+  const [activeNav] = useState<string>('import');
 
-  const fileRef = useRef<File | null>(null);
-  const progressTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const abortControllerRef = useRef<AbortController | null>(null);
-
-  const clearTimers = () => {
-    progressTimersRef.current.forEach(clearTimeout);
-    progressTimersRef.current = [];
-  };
-
-  const handleFileSelected = useCallback(
-    async (file: File) => {
-      fileRef.current = file;
-      dispatch(setFileInfo({ fileName: file.name, fileSizeBytes: file.size }));
-      dispatch(setLoading(true));
-      try {
-        const data = await previewCsv(file);
-        dispatch(
-          setPreviewData({ headers: data.headers, rows: data.rows, totalRows: data.totalRows })
-        );
-      } catch (err: unknown) {
-        dispatch(setError(err instanceof Error ? err.message : 'Failed to parse CSV'));
-      } finally {
-        dispatch(setLoading(false));
-      }
-    },
-    [dispatch]
-  );
-
-  const handleConfirm = useCallback(async () => {
-    if (!fileRef.current) return;
-    dispatch(setStep(3));
-    dispatch(setLoading(true));
-    dispatch(setProgress({ progress: 5, message: 'Uploading file…' }));
-
-    abortControllerRef.current = new AbortController();
-
-    PROGRESS_STAGES.forEach(({ pct, msg, delay }) => {
-      const t = setTimeout(() => dispatch(setProgress({ progress: pct, message: msg })), delay);
-      progressTimersRef.current.push(t);
-    });
-    try {
-      const data = await processCsv(
-        fileRef.current,
-        (p) => dispatch(setProgress({ progress: p, message: 'Uploading file…' })),
-        abortControllerRef.current.signal
-      );
-      clearTimers();
-      dispatch(setProgress({ progress: 98, message: 'Finalising…' }));
-      await new Promise((r) => setTimeout(r, 600));
-      dispatch(
-        setResult({
-          summary: data.summary,
-          records: data.records,
-          skipped: data.skipped,
-          fromCache: data.fromCache,
-        })
-      );
-    } catch (err: unknown) {
-      clearTimers();
-      if (err instanceof Error && (err.message === 'canceled' || err.name === 'AbortError')) {
-        return;
-      }
-      dispatch(setError(err instanceof Error ? err.message : 'AI extraction failed. Please try again.'));
-      dispatch(setStep(2));
-    } finally {
-      abortControllerRef.current = null;
-    }
-  }, [dispatch]);
-
-  const handleStop = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-    clearTimers();
-    dispatch(setLoading(false));
-    dispatch(setError('AI processing stopped by user'));
-    dispatch(setStep(2));
-  }, [dispatch]);
-
-  const handleReset = useCallback(() => {
-    clearTimers();
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-    fileRef.current = null;
-    dispatch(reset());
-  }, [dispatch]);
-
-  useEffect(() => () => {
-    clearTimers();
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-  }, []);
+  // Load logic from custom hook
+  const { handleFileSelected, handleConfirm, handleStop, handleReset } = useImportPipeline();
 
   const STEP_META: Record<number, string> = {
     1: 'Upload CSV',
@@ -165,9 +56,10 @@ export default function DashboardPage() {
 
   return (
     <div className="flex min-h-screen pl-24 bg-bg-base bg-[radial-gradient(ellipse_70%_50%_at_50%_0%,rgba(249,115,22,0.05)_0%,transparent_55%),linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[length:auto,56px_56px,56px_56px]">
-      {/* Floating Toast Notification for Errors */}
+
+      {/* ── Floating Error Toast ── */}
       <AnimatePresence>
-        {error && (
+        {error && !quotaError && (
           <motion.div
             initial={{ opacity: 0, y: -20, x: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
@@ -180,9 +72,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-bold text-error">Import Error</p>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-text-secondary">
-                {error}
-              </p>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-text-secondary">{error}</p>
             </div>
             <button
               onClick={() => dispatch(setError(null))}
@@ -195,8 +85,62 @@ export default function DashboardPage() {
         )}
       </AnimatePresence>
 
+      {/* ── Quota Error Toast (rich) ── */}
+      <AnimatePresence>
+        {quotaError && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, x: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, x: 20, scale: 0.95 }}
+            transition={{ duration: 0.25 }}
+            className="fixed top-6 right-6 z-[100] flex w-[420px] flex-col gap-3 rounded-2xl border border-[rgba(251,191,36,0.25)] bg-bg-card p-4 shadow-[0_12px_32px_rgba(251,191,36,0.1),var(--shadow-card)]"
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[rgba(251,191,36,0.12)] text-yellow-400">
+                <Zap size={16} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-yellow-400">Gemini Quota Exceeded</p>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-text-secondary">
+                  Your import has been paused. Please retry after quota resets or update your API key.
+                </p>
+              </div>
+              <button
+                onClick={() => dispatch(setQuotaError(null))}
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-text-muted hover:bg-bg-elevated hover:text-text-primary transition-colors cursor-pointer"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 gap-2 rounded-xl border border-border-subtle bg-bg-elevated p-3">
+              <div className="flex flex-col">
+                <span className="text-[10px] text-text-muted font-medium uppercase tracking-wide">Already processed</span>
+                <span className="text-sm font-bold text-success mt-0.5">
+                  {quotaError.processed.toLocaleString()} records
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] text-text-muted font-medium uppercase tracking-wide">Remaining</span>
+                <span className="text-sm font-bold text-text-primary mt-0.5">
+                  {quotaError.remaining.toLocaleString()} rows
+                </span>
+              </div>
+            </div>
+
+            {quotaError.retryAfterSeconds && (
+              <div className="flex items-center gap-2 text-[11px] text-text-muted">
+                <Clock size={11} />
+                Retry after ~{Math.ceil(quotaError.retryAfterSeconds / 60)} minutes
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Floating Navbar containing Step Info */}
+        {/* ── Header Bar ── */}
         <div className="flex justify-between items-center px-7 pt-5 pb-1 max-md:px-4">
           <div className="inline-flex items-center gap-3 rounded-xl border border-border-brand bg-brand-dim px-4 py-2">
             <FileCheck2 size={16} className="text-brand shrink-0" />
@@ -213,8 +157,8 @@ export default function DashboardPage() {
           </div>
           <div className="inline-flex items-center gap-3 rounded-full border-2 border-white/[0.12] bg-[#0c0c0e]/95 px-4 py-2 shadow-[0_0_24px_rgba(0,0,0,0.5),0_0_15px_rgba(255,255,255,0.08)] backdrop-blur-md">
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75"></span>
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-success"></span>
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
             </span>
             <span className="text-[12px] font-bold text-white">AI Mapping Active</span>
           </div>
@@ -234,6 +178,7 @@ export default function DashboardPage() {
                   <StepIndicator currentStep={step} isLoading={loading} />
 
                   <AnimatePresence mode="wait">
+                    {/* ── Step 1: Upload ── */}
                     {step === 1 && (
                       <motion.div
                         key="s1"
@@ -292,6 +237,7 @@ export default function DashboardPage() {
                       </motion.div>
                     )}
 
+                    {/* ── Step 2: Preview ── */}
                     {step === 2 && (
                       <motion.div
                         key="s2"
@@ -311,13 +257,16 @@ export default function DashboardPage() {
                                 Preview Your Data
                               </h2>
                               <p className="mt-0.5 text-[13px] text-text-secondary">
-                                Scroll down to verify the data looks correct before AI processing
+                                Verify the data looks correct before AI processing
                               </p>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-3 max-md:w-full max-md:flex-col">
-                            <button onClick={handleReset} className={cn(buttonBase, buttonGhost, 'max-md:w-full max-md:justify-center')}>
+                            <button
+                              onClick={handleReset}
+                              className={cn(buttonBase, buttonGhost, 'max-md:w-full max-md:justify-center')}
+                            >
                               <RefreshCw size={13} />
                               Upload different file
                             </button>
@@ -342,6 +291,7 @@ export default function DashboardPage() {
                       </motion.div>
                     )}
 
+                    {/* ── Step 3: Processing ── */}
                     {step === 3 && (
                       <motion.div
                         key="s3"
@@ -354,12 +304,18 @@ export default function DashboardPage() {
                         <ProcessingOverlay
                           progress={progress}
                           message={progressMessage}
+                          processingMode={processingMode}
+                          progressDetails={progressDetails}
                           totalRows={totalRows}
                         />
                         {!error && (
                           <button
                             onClick={handleStop}
-                            className={cn(buttonBase, buttonGhost, "mt-6 border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/30 transition-all duration-150")}
+                            className={cn(
+                              buttonBase,
+                              buttonGhost,
+                              'mt-6 border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/30 transition-all duration-150'
+                            )}
                           >
                             Stop Processing
                           </button>
@@ -379,6 +335,7 @@ export default function DashboardPage() {
                       </motion.div>
                     )}
 
+                    {/* ── Step 4: Results ── */}
                     {step === 4 && result && result.summary && (
                       <motion.div
                         key="s4"
@@ -401,8 +358,6 @@ export default function DashboardPage() {
                 </div>
               </motion.div>
             )}
-
-
           </AnimatePresence>
         </div>
       </div>

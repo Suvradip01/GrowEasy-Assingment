@@ -84,26 +84,30 @@ describe('AI Schemas (Zod validation)', () => {
   describe('FieldMappingSchema', () => {
     it('accepts a valid field mapping response', () => {
       const valid = {
-        mapping: { Name: 'name', Email: 'email', Phone: 'mobile_without_country_code' },
+        mappings: [
+          { csv_column: 'Name', crm_field: 'name' },
+          { csv_column: 'Email', crm_field: 'email' },
+          { csv_column: 'Phone', crm_field: 'mobile_without_country_code' }
+        ],
         confidence: 0.95,
       };
       expect(() => FieldMappingSchema.parse(valid)).not.toThrow();
     });
 
     it('rejects when confidence is greater than 1', () => {
-      expect(() => FieldMappingSchema.parse({ mapping: {}, confidence: 1.5 })).toThrow(z.ZodError);
+      expect(() => FieldMappingSchema.parse({ mappings: [], confidence: 1.5 })).toThrow(z.ZodError);
     });
 
     it('rejects when confidence is less than 0', () => {
-      expect(() => FieldMappingSchema.parse({ mapping: {}, confidence: -0.1 })).toThrow(z.ZodError);
+      expect(() => FieldMappingSchema.parse({ mappings: [], confidence: -0.1 })).toThrow(z.ZodError);
     });
 
-    it('rejects when mapping is missing', () => {
+    it('rejects when mappings is missing', () => {
       expect(() => FieldMappingSchema.parse({ confidence: 0.8 })).toThrow(z.ZodError);
     });
 
     it('rejects when confidence is missing', () => {
-      expect(() => FieldMappingSchema.parse({ mapping: {} })).toThrow(z.ZodError);
+      expect(() => FieldMappingSchema.parse({ mappings: [] })).toThrow(z.ZodError);
     });
   });
 

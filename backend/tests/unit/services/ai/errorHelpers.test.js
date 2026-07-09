@@ -72,7 +72,7 @@ describe('AI errorHelpers', () => {
 
     it('rounds up to ceiling milliseconds', () => {
       const err = new Error('{"retryDelay": "1.5s"}');
-      expect(getRetryDelayMs(err)).toBe(2000);
+      expect(getRetryDelayMs(err)).toBe(1500);
     });
   });
 

@@ -28,12 +28,17 @@ const CrmRecordSchema = z.object({
   data_source: z.enum(DATA_SOURCES).optional().nullable(),
   possession_time: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
-  _skipped: z.boolean().optional(),
+  _skipped: z.boolean().optional().nullable(),
   _skip_reason: z.string().optional().nullable(),
 });
 
 const FieldMappingSchema = z.object({
-  mapping: z.record(z.string(), z.string()),
+  mappings: z.array(
+    z.object({
+      csv_column: z.string(),
+      crm_field: z.string().nullable(),
+    })
+  ),
   confidence: z.number().min(0).max(1),
 });
 
@@ -75,16 +80,31 @@ const GEMINI_CRM_RECORD_SCHEMA = {
 const GEMINI_FIELD_MAPPING_SCHEMA = {
   type: SchemaType.OBJECT,
   properties: {
-    mapping: {
-      type: SchemaType.OBJECT,
-      description: 'Map of CSV column name → CRM field name',
+    mappings: {
+      type: SchemaType.ARRAY,
+      description: 'List of column mappings from CSV to CRM target field names',
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          csv_column: {
+            type: SchemaType.STRING,
+            description: 'The exact column name from the CSV'
+          },
+          crm_field: {
+            type: SchemaType.STRING,
+            description: 'The target CRM field name mapping (or null/crm_note)',
+            nullable: true
+          }
+        },
+        required: ['csv_column', 'crm_field']
+      }
     },
     confidence: {
       type: SchemaType.NUMBER,
       description: 'Overall mapping confidence score 0–1',
     },
   },
-  required: ['mapping', 'confidence'],
+  required: ['mappings', 'confidence'],
 };
 
 const GEMINI_BATCH_SCHEMA = {

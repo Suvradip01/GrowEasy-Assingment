@@ -7,12 +7,16 @@ const logger = require('./logger');
  *  - configurable concurrency (parallel batches)
  *  - retry with exponential backoff per batch
  *  - per-item success/failure tracking
+ *  - real-time progress callbacks for SSE streaming
  *
- * @param {Array}    items       - Full array of items to process
- * @param {number}   batchSize   - Items per batch
- * @param {number}   concurrency - Max parallel batches at once
- * @param {number}   retries     - Max retry attempts per batch
- * @param {Function} processor   - async (batch: Array) => Array of results
+ * @param {Array}    items          - Full array of items to process
+ * @param {number}   batchSize      - Items per batch
+ * @param {number}   concurrency    - Max parallel batches at once
+ * @param {number}   retries        - Max retry attempts per batch
+ * @param {Function} processor      - async (batch: Array) => Array of results
+ * @param {Function} [shouldAbort]  - (err) => boolean — abort all remaining batches
+ * @param {Function} [getRetryDelayMs] - (err) => number|null — provider-recommended delay
+ * @param {Function} [onBatchComplete] - (completedBatches, totalBatches) => void — progress callback
  * @returns {{ results: Array, failures: Array }}
  */
 const processBatches = async ({
@@ -23,6 +27,7 @@ const processBatches = async ({
   processor,
   shouldAbort,
   getRetryDelayMs,
+  onBatchComplete,
 }) => {
   // Chunk items into batches
   const batches = [];
@@ -30,8 +35,10 @@ const processBatches = async ({
     batches.push({ index: Math.floor(i / batchSize), chunk: items.slice(i, i + batchSize) });
   }
 
+  const totalBatches = batches.length;
   const results = [];
   const failures = [];
+  let completedBatches = 0;
 
   // Process batches with concurrency limit
   for (let i = 0; i < batches.length; i += concurrency) {
@@ -70,7 +77,13 @@ const processBatches = async ({
           });
         });
       }
+      completedBatches++;
     });
+
+    // ── Emit progress after each concurrency window ──
+    if (onBatchComplete) {
+      onBatchComplete(completedBatches, totalBatches);
+    }
   }
 
   return { results, failures };
@@ -78,6 +91,7 @@ const processBatches = async ({
 
 /**
  * Runs a single batch processor with exponential backoff retries.
+ * Waits for the provider-recommended delay on rate-limit errors (429).
  */
 const runWithRetry = async ({ batchIndex, chunk, processor, maxRetries, getRetryDelayMs }) => {
   let lastError;
@@ -90,9 +104,12 @@ const runWithRetry = async ({ batchIndex, chunk, processor, maxRetries, getRetry
     } catch (err) {
       lastError = err;
       if (attempt < maxRetries) {
+        // Use provider-recommended delay if available, otherwise exponential backoff
         const providerDelay = getRetryDelayMs?.(err);
         const delay = providerDelay ?? Math.pow(2, attempt - 1) * 500;
-        logger.warn(`Batch ${batchIndex} attempt ${attempt} failed, retrying in ${delay}ms: ${err.message}`);
+        logger.warn(
+          `Batch ${batchIndex} attempt ${attempt} failed, retrying in ${delay}ms: ${err.message}`
+        );
         await sleep(delay);
       }
     }

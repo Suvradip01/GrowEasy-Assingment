@@ -1,5 +1,11 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import type { CrmRecord, SkippedRecord, ImportSummary, ImportStep } from '@/types/crm';
+import type {
+  CrmRecord,
+  SkippedRecord,
+  ImportSummary,
+  ImportStep,
+  ProcessingMode,
+} from '@/types/crm';
 
 interface ImportState {
   step: ImportStep;
@@ -12,7 +18,23 @@ interface ImportState {
   loading: boolean;
   progress: number; // 0–100
   progressMessage: string;
+  /**
+   * The active pipeline mode label shown in the processing overlay.
+   * e.g. "Standard AI" | "Production-Optimized AI" | null
+   */
+  processingMode: string | null;
+  /**
+   * Fine-grained progress detail for the processing overlay.
+   * e.g. "Batch 4 / 20" | "12,000 / 50,000 rows"
+   */
+  progressDetails: string | null;
   error: string | null;
+  /** Quota error details for enhanced UX messaging */
+  quotaError: {
+    processed: number;
+    remaining: number;
+    retryAfterSeconds: number | null;
+  } | null;
   result: {
     summary: ImportSummary | null;
     records: CrmRecord[];
@@ -33,7 +55,10 @@ const initialState: ImportState = {
   loading: false,
   progress: 0,
   progressMessage: '',
+  processingMode: null,
+  progressDetails: null,
   error: null,
+  quotaError: null,
   result: null,
   activeResultTab: 'success',
 };
@@ -46,6 +71,7 @@ const importSlice = createSlice({
       state.fileName = action.payload.fileName;
       state.fileSizeBytes = action.payload.fileSizeBytes;
       state.error = null;
+      state.quotaError = null;
     },
     setPreviewData(
       state,
@@ -59,12 +85,40 @@ const importSlice = createSlice({
     setLoading(state, action: PayloadAction<boolean>) {
       state.loading = action.payload;
     },
-    setProgress(state, action: PayloadAction<{ progress: number; message: string }>) {
+    setProgress(
+      state,
+      action: PayloadAction<{
+        progress: number;
+        message: string;
+        mode?: string | null;
+        details?: string | null;
+      }>
+    ) {
       state.progress = action.payload.progress;
       state.progressMessage = action.payload.message;
+      if (action.payload.mode !== undefined) {
+        state.processingMode = action.payload.mode;
+      }
+      if (action.payload.details !== undefined) {
+        state.progressDetails = action.payload.details;
+      }
     },
     setError(state, action: PayloadAction<string | null>) {
       state.error = action.payload;
+      if (action.payload !== null) {
+        state.loading = false;
+        state.progress = 0;
+      }
+    },
+    setQuotaError(
+      state,
+      action: PayloadAction<{
+        processed: number;
+        remaining: number;
+        retryAfterSeconds: number | null;
+      } | null>
+    ) {
+      state.quotaError = action.payload;
       if (action.payload !== null) {
         state.loading = false;
         state.progress = 0;
@@ -83,6 +137,8 @@ const importSlice = createSlice({
       state.loading = false;
       state.progress = 100;
       state.step = 4;
+      state.processingMode = null;
+      state.progressDetails = null;
     },
     setStep(state, action: PayloadAction<ImportStep>) {
       state.step = action.payload;
@@ -102,6 +158,7 @@ export const {
   setLoading,
   setProgress,
   setError,
+  setQuotaError,
   setResult,
   setStep,
   setActiveResultTab,

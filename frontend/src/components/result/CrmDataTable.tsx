@@ -91,7 +91,7 @@ export default function CrmDataTable({
     <div className="overflow-hidden rounded-[10px] border border-border-subtle bg-bg-surface">
       {/* Search bar */}
       <div className="flex items-center gap-2 border-b border-border-subtle bg-bg-card px-4 py-2.5">
-        <div className="flex items-center gap-2 rounded-[10px] border border-border-default bg-bg-elevated px-3 py-1.5 text-text-muted transition-colors duration-150 focus-within:border-brand focus-within:text-brand">
+        <div className="flex items-center gap-2 rounded-[10px] border border-gray-400 bg-bg-elevated px-3 py-1.5 text-text-muted transition-colors duration-150 focus-within:border-brand focus-within:text-brand">
           <Search size={14} />
           <input
             type="text"
@@ -103,11 +103,24 @@ export default function CrmDataTable({
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
+      {/* Pagination — sits above the table */}
+      {records.length > 0 && (
+        <PaginationControls
+          page={safeRecordPage}
+          totalPages={totalRecordPages}
+          totalItems={records.length}
+          onPageChange={onPageChange}
+        />
+      )}
+
+      {/* Table: outer div scrolls both horizontally and vertically with fixed height */}
+      <div
+        className="overflow-auto"
+        style={{ maxHeight: 440, scrollbarGutter: 'stable' }}
+      >
         <div style={{ width: tableWidth, minWidth: '100%' }}>
-          {/* Header */}
-          <div className="flex min-h-[42px] items-center border-b border-border-subtle bg-bg-elevated">
+          {/* Sticky column header */}
+          <div className="sticky top-0 z-10 flex min-h-[42px] items-center border-b border-border-subtle bg-bg-elevated">
             <div className="flex w-11 shrink-0 items-center justify-center text-[11px] font-semibold text-text-muted">#</div>
             {CRM_COLS.map((col) => (
               <div
@@ -121,45 +134,35 @@ export default function CrmDataTable({
           </div>
 
           {/* Rows */}
-          <div>
-            {visibleRecords.map((record, offset) => {
-              const globalIndex = recordStart + offset;
-              return (
-                <div
-                  key={globalIndex}
-                  className={cn(
-                    'flex h-[50px] items-center transition-colors duration-150 hover:bg-bg-elevated',
-                    globalIndex % 2 === 0 ? 'bg-bg-surface' : 'bg-bg-card',
-                    offset < visibleRecords.length - 1 && 'border-b border-border-subtle'
-                  )}
-                >
-                  <div className="flex h-12 w-11 shrink-0 items-center justify-center text-xs text-text-muted">
-                    {globalIndex + 1}
-                  </div>
-                  {CRM_COLS.map((col) => (
-                    <div
-                      key={col.key}
-                      className="flex h-12 shrink-0 items-center overflow-hidden border-l border-border-subtle px-3"
-                      style={{ minWidth: col.width, maxWidth: col.width }}
-                    >
-                      {renderCell(record, col)}
-                    </div>
-                  ))}
+          {visibleRecords.map((record, offset) => {
+            const globalIndex = recordStart + offset;
+            return (
+              <div
+                key={globalIndex}
+                className={cn(
+                  'flex h-[50px] items-center transition-colors duration-150 hover:bg-bg-elevated',
+                  globalIndex % 2 === 0 ? 'bg-bg-surface' : 'bg-bg-card',
+                  offset < visibleRecords.length - 1 && 'border-b border-border-subtle'
+                )}
+                style={{ width: tableWidth, minWidth: '100%' }}
+              >
+                <div className="flex h-12 w-11 shrink-0 items-center justify-center text-xs text-text-muted">
+                  {globalIndex + 1}
                 </div>
-              );
-            })}
-          </div>
+                {CRM_COLS.map((col) => (
+                  <div
+                    key={col.key}
+                    className="flex h-12 shrink-0 items-center overflow-hidden border-l border-border-subtle px-3"
+                    style={{ minWidth: col.width, maxWidth: col.width }}
+                  >
+                    {renderCell(record, col)}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
         </div>
       </div>
-
-      {records.length > 0 && (
-        <PaginationControls
-          page={safeRecordPage}
-          totalPages={totalRecordPages}
-          totalItems={records.length}
-          onPageChange={onPageChange}
-        />
-      )}
 
       {records.length === 0 && (
         <div className="flex flex-col items-center gap-3 bg-bg-surface px-6 py-12 text-center text-text-muted">

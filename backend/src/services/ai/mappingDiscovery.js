@@ -1,20 +1,58 @@
 'use strict';
 
+const crypto = require('crypto');
 const logger = require('../../utils/logger');
 const { getStructuredModel } = require('./geminiClient');
 const { isQuotaError, createAiLimitError } = require('./errorHelpers');
 const { GEMINI_FIELD_MAPPING_SCHEMA, FieldMappingSchema } = require('./schemas');
+const { getRedisClient } = require('../../config/redis');
+
+// Cache TTL: 7 days (as suggested for dynamic environments)
+const MAPPING_CACHE_TTL = 7 * 24 * 3600;
 
 /**
- * Stage 1 — Schema Discovery.
- * Sends headers + a sample of rows to Gemini (one API call per upload)
- * to produce a mapping of CSV column names → CRM field names.
+ * Compute a stable cache key for a set of CSV headers.
+ * We sort headers before hashing so column order doesn't create cache misses.
+ * This also collapses semantically-duplicate header sets (e.g. same columns in different order).
+ *
+ * @param {string[]} headers
+ * @returns {string} Redis key
+ */
+const headerCacheKey = (headers) => {
+  const sorted = [...headers].map((h) => h.toLowerCase().trim()).sort();
+  const hash = crypto.createHash('sha256').update(JSON.stringify(sorted)).digest('hex');
+  return `mapping:headers:${hash}`;
+};
+
+/**
+ * Stage 1 — Schema Discovery with Redis caching.
+ *
+ * Sends headers + a sample of rows to Gemini (ONE API call per unique header set).
+ * Subsequent uploads with the same column schema hit the cache — zero AI cost.
+ *
+ * Cache key: SHA-256 hash of sorted, lowercased headers.
  *
  * @param {string[]} headers    - CSV column headers
  * @param {object[]} sampleRows - First 5 rows for context
  * @returns {{ mapping: Record<string,string>, confidence: number, source: string }}
  */
 const discoverFieldMapping = async (headers, sampleRows) => {
+  const redis = getRedisClient();
+  const cacheKey = headerCacheKey(headers);
+
+  // ── Check Redis cache ──
+  try {
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      logger.info(`[Mapping] Cache hit for headers hash (${headers.length} columns). Skipping AI call.`);
+      return { ...parsed, source: 'cache' };
+    }
+  } catch (cacheErr) {
+    logger.warn(`[Mapping] Redis read failed (non-fatal): ${cacheErr.message}`);
+  }
+
+  // ── Call Gemini ──
   const model = getStructuredModel(GEMINI_FIELD_MAPPING_SCHEMA);
 
   const sampleText = sampleRows
@@ -24,7 +62,7 @@ const discoverFieldMapping = async (headers, sampleRows) => {
 
   const prompt = `
 You are a CRM data integration expert. Analyse these CSV headers and sample rows, 
-then produce a JSON mapping of EACH CSV column to a GrowEasy CRM field.
+then produce a JSON list of column mappings from the CSV to GrowEasy CRM fields.
 
 CRM target fields (only map to these exact names):
 created_at, name, email, country_code, mobile_without_country_code, company, 
@@ -43,12 +81,13 @@ Mapping rules:
 4. If multiple CSV columns could be email, map first to email, rest to crm_note.
 5. Columns for area code / country dialling code → country_code.
 6. Columns for region/province/territory → state.
-7. Return "confidence" as a float 0–1 indicating your overall mapping certainty.
+7. Treat semantically-duplicate columns (e.g. "Lead Name", "Name", "Customer Name") as the same field.
+8. Return "confidence" as a float 0–1 indicating your overall mapping certainty.
 
-Return ONLY the JSON object with "mapping" and "confidence".
+Return ONLY the JSON object with "mappings" array (each item having "csv_column" and "crm_field") and "confidence".
 `.trim();
 
-  logger.debug('Stage 1: Sending field mapping request to Gemini');
+  logger.debug('[Mapping] Stage 1: Sending field mapping request to Gemini');
 
   let result;
   try {
@@ -59,16 +98,37 @@ Return ONLY the JSON object with "mapping" and "confidence".
   }
 
   const rawJson = result.response.text();
-  logger.debug(`Stage 1 raw response: ${rawJson}`);
+  logger.debug(`[Mapping] Stage 1 raw response: ${rawJson}`);
 
   const parsed = JSON.parse(rawJson);
   const validated = FieldMappingSchema.parse(parsed);
 
+  // Convert array of mappings to flat mapping object expected by downstream logic
+  const mapping = {};
+  validated.mappings.forEach((m) => {
+    if (m.crm_field && m.csv_column) {
+      mapping[m.csv_column] = m.crm_field;
+    }
+  });
+
+  const output = {
+    mapping,
+    confidence: validated.confidence
+  };
+
   logger.info(
-    `Field mapping discovered (confidence: ${validated.confidence}): ${JSON.stringify(validated.mapping)}`
+    `[Mapping] Discovered (confidence: ${validated.confidence}): ${JSON.stringify(mapping)}`
   );
 
-  return { ...validated, source: 'gemini' };
+  // ── Cache the result in Redis ──
+  try {
+    await redis.set(cacheKey, JSON.stringify(output), 'EX', MAPPING_CACHE_TTL);
+    logger.info(`[Mapping] Cached header mapping (key: mapping:headers:${cacheKey.slice(-8)}...)`);
+  } catch (cacheErr) {
+    logger.warn(`[Mapping] Redis write failed (non-fatal): ${cacheErr.message}`);
+  }
+
+  return { ...output, source: 'gemini' };
 };
 
 module.exports = { discoverFieldMapping };
