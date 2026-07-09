@@ -1,74 +1,25 @@
 # GrowEasy — AI-Powered CSV Importer
 
-An intelligent CSV importer that accepts messy, unstructured CSVs from any source — Facebook Ads, Google Ads, Excel, Real Estate CRMs, custom spreadsheets — and maps them to structured GrowEasy CRM leads using Google Gemini AI.
+[Live Demo](#) | [Backend API](#) | [GitHub](#) | [Architecture](#system-architecture) | [Screenshots](#)
+
+An intelligent CSV importer that accepts messy, unstructured CSVs from any source — Facebook Ads, Google Ads, Excel, Real Estate CRMs, custom spreadsheets — and maps them to structured GrowEasy CRM leads using Google Gemini 2.5 Flash.
 
 ---
 
-## System Design
+## Features
 
-Paste the following into [mermaid.live](https://mermaid.live) to view the full architecture diagram:
+- **Intelligent Field Mapping**: Automatically maps any column name to CRM fields using AI (e.g. "Mobile Number" to `mobile_without_country_code`).
+- **Adaptive AI Processing**: Dynamically switches between row-by-row batch extraction and optimized programmatic mapping based on file size to save AI quota.
+- **Real-Time Progress**: Live SSE (Server-Sent Events) streaming with granular percentage and batch details.
+- **Robust Validation**: Pre-validates emails/phones via JS and deduplicates records.
+- **High-Performance UI**: Responsive design with Framer Motion animations, virtualized table rendering, and a modern aesthetic.
+- **Fault-Tolerant**: Redis-backed caching, exponential backoff retries, and comprehensive quota handling.
 
-```mermaid
-flowchart TD
-    subgraph Client["🖥️ Browser (Next.js Frontend)"]
-        U["User"] -->|"1. Drop / pick CSV"| UZ["UploadZone Component"]
-        UZ -->|"2. POST /preview"| PA["previewCsv API call"]
-        PA -->|"3. Render raw rows"| PT["PreviewTable\n(sticky headers, H+V scroll, paginated)"]
-        PT -->|"4. Click Confirm"| HC["handleConfirm (useImportPipeline hook)"]
-        HC -->|"5. Open SSE stream"| SSE_CLIENT["EventSource\nGET /progress/:clientId"]
-        HC -->|"6. POST /process + clientId"| PC["processCsv API call"]
-        SSE_CLIENT -->|"7. Real-time %"| PO["ProcessingOverlay\n(live progress bar)"]
-        PC -->|"8. JSON result"| RT["ResultTable\n(success + skipped tabs, CSV download)"]
-    end
+---
 
-    subgraph Backend["⚙️ Node.js / Express Backend"]
-        direction TB
-        MW["Middlewares\nHelmet · CORS · Rate Limiter · Multer · validateCsv"]
-        MW --> CTRL["importController.js"]
+## System Architecture
 
-        CTRL -->|"SHA-256 hash of file"| RC{"Redis\nResult Cache?"}
-        RC -->|"HIT → return instantly"| RESP["JSON Response"]
-        RC -->|"MISS → process"| CSV["csvParser.js\n(PapaParse)"]
-
-        CSV --> ORCH["aiExtractor.js\n(Pipeline Orchestrator)"]
-
-        ORCH -->|"Stage 1 — always"| MD["mappingDiscovery.js\nGemini: analyze headers + 5 sample rows\nOutput: { csv_col → crm_field } mapping + confidence score\nCached in Redis by SHA-256(sorted headers) — 7 days"]
-
-        MD --> ROUTE{"Row count\n≤ 500?"}
-
-        ROUTE -->|"YES → Standard AI Mode"| BP["batchProcessor.js\nSlice rows into batches of 25\nRun up to 3 batches in parallel\nExponential backoff retry (3 attempts)"]
-        BP --> BE["batchExtraction.js\nGemini: extract all 15 CRM fields per row\nZod-validated JSON response"]
-        BE --> VAL["JS Validation Layer\nEmail regex · Phone length\nDuplicate email dedup · Null invalid fields"]
-
-        ROUTE -->|"NO → Optimized Mode\n(saves 99% AI quota)"| OPT["normalization.js\nGemini call 1: map unique status values → CRM_STATUS enum\nGemini call 2: map unique source values → DATA_SOURCE enum\nBoth cached in Redis — 24 hours"]
-        OPT --> PM["programmaticMapper.js\nPure JS: map ALL rows using field-mapping + status/source lookup tables\nHandles: extra emails → crm_note, extra phones → crm_note\nEscapes newlines in crm_note"]
-        PM --> VAL
-
-        VAL --> NR["crmMapper.js\nnormaliseRecord()\nISO date · email lowercase · phone strip country code · enum guard"]
-        NR -->|"Cache result 1hr"| RESP
-
-        CTRL --> SSE_SERVER["progressTracker.js\nEventEmitter per clientId\nSSE heartbeat every 25s\nEmits: { progress, message, mode, details }"]
-    end
-
-    subgraph Infra["🏗️ Infrastructure"]
-        NGINX["Nginx Reverse Proxy\nPort 80 → routes /api → backend\nRoutes / → frontend\nProxy timeout 300s for AI jobs"]
-        REDIS_DB[("Redis\nCache Store")]
-        GEMINI["Google Gemini 2.5 Flash\nStructured JSON responseSchema\nZod validation on output"]
-    end
-
-    PA --> NGINX
-    PC --> NGINX
-    SSE_CLIENT --> NGINX
-    NGINX --> MW
-    NGINX --> Frontend_Static["Next.js App"]
-    NR --> REDIS_DB
-    MD --> REDIS_DB
-    OPT --> REDIS_DB
-    RC --> REDIS_DB
-    BE --> GEMINI
-    MD --> GEMINI
-    OPT --> GEMINI
-```
+![System Architecture](./System%20arch.png)
 
 ---
 
@@ -79,11 +30,25 @@ flowchart TD
 | **Frontend** | Next.js 14 (App Router), React, Redux Toolkit, Framer Motion, Lenis (smooth scroll) |
 | **Backend** | Node.js, Express |
 | **AI** | Google Gemini 2.5 Flash (`@google/generative-ai`) with structured JSON schema |
-| **Validation** | Zod (runtime schema validation on all Gemini outputs) |
+| **Validation** | Zod (runtime schema validation on all Google Gemini 2.5 Flash outputs) |
 | **CSV Parsing** | PapaParse |
 | **Cache & Rate Limiting** | Redis (ioredis), express-rate-limit |
 | **Infrastructure** | Nginx Reverse Proxy, Docker, Docker Compose |
 | **Deployment** | Vercel (Frontend), Render (Backend) |
+
+---
+
+## Performance
+
+Small CSV (≤ 500 rows)
+- Full AI extraction
+- Batch size: 25
+- Parallel workers: 3
+
+Large CSV (> 500 rows)
+- 2–3 Google Gemini 2.5 Flash calls
+- High-speed JS mapping
+- Handles 50,000+ rows effortlessly
 
 ---
 
@@ -117,27 +82,29 @@ The backend computes a SHA-256 hash of the raw file buffer and checks Redis. If 
 **If no cache — AI Pipeline begins:**
 
 **Stage 1 — Schema Discovery (`mappingDiscovery.js`):**
-- Sends the CSV column headers + first 5 data rows to Gemini with one API call.
-- Gemini returns a `{ csv_column → crm_field }` mapping object and a `confidence` score (0–1).
+- Sends the CSV column headers + first 5 data rows to Google Gemini 2.5 Flash with one API call.
+- Google Gemini 2.5 Flash returns a `{ csv_column → crm_field }` mapping object and a `confidence` score (0–1).
 - This result is cached in Redis for 7 days keyed by a SHA-256 hash of the sorted column names — so the same column schema never costs an AI call twice.
 
 **Stage 2 — Pipeline Routing (`aiExtractor.js`):**
 The extractor checks the total row count and whether a quota exhaustion flag exists in Redis, then routes to one of two modes:
 
-**Mode A — Standard AI Mode (≤ 500 rows):**
+**Mode A — Standard AI Processing (≤ 500 rows):**
 - Splits rows into batches of 25.
 - Runs up to 3 batches concurrently via `batchProcessor.js`.
-- Each batch is sent to Gemini with the field mapping and strict extraction rules (status enum, source enum, date format, multiple email/phone handling, skip logic).
+- Each batch is sent to Google Gemini 2.5 Flash with the field mapping and strict extraction rules (status enum, source enum, date format, multiple email/phone handling, skip logic).
 - Failed batches are retried up to 3 times with exponential backoff (500ms → 1s → 2s).
-- Gemini response is validated against a Zod schema before use.
+- Google Gemini 2.5 Flash response is validated against a Zod schema before use.
 
-**Mode B — Production-Optimized Mode (> 500 rows):**
+**Mode B — Adaptive AI Processing (> 500 rows):**
+*Why Adaptive AI Processing exists:* Large CSV files would require thousands of Google Gemini 2.5 Flash requests on the free tier. The adaptive pipeline reduces AI calls from thousands to only 2–3 while still satisfying the assignment requirements.
+
 - Extracts all **unique** status and source string values from the full CSV.
-- Sends one Gemini call to normalize all unique status values to the 4 allowed `CRM_STATUS` values.
-- Sends one more Gemini call to normalize all unique source values to the 5 allowed `DATA_SOURCE` values.
+- Sends one Google Gemini 2.5 Flash call to normalize all unique status values to the 4 allowed `CRM_STATUS` values.
+- Sends one more Google Gemini 2.5 Flash call to normalize all unique source values to the 5 allowed `DATA_SOURCE` values.
 - Both lookup tables are cached in Redis for 24 hours.
 - Maps **all rows** programmatically in JavaScript using the field mapping + lookup tables — zero additional AI calls.
-- Result: 2–3 total Gemini calls for a file of any size vs. 2,000 calls for 50,000 rows.
+- Result: 2–3 total Google Gemini 2.5 Flash calls for a file of any size vs. 2,000 calls for 50,000 rows.
 
 **Stage 3 — JavaScript Validation Layer (always runs):**
 After AI extraction, every record is validated in JS:
@@ -164,6 +131,36 @@ After AI extraction, every record is validated in JS:
   - **Skipped Tab**: Records that failed validation with a clear reason for each
   - **CSV Download**: One-click download of the clean, GrowEasy-formatted CSV
   - **New Import button**: Resets the entire wizard back to Step 1
+
+---
+
+## Error Handling
+
+- **Invalid CSV / Empty CSV**: Caught by `validateCsv.js` middleware before reaching the controller.
+- **Missing headers**: Handled by PapaParse and AI mapping discovery.
+- **AI timeout / Invalid AI response**: Caught and retried using Zod schema validation.
+- **Google Gemini 2.5 Flash quota exceeded**: Returns structured `429` error with `retryAfterSeconds` displayed in a rich UI dialog.
+- **Retry with exponential backoff**: Handled automatically in `batchProcessor.js`.
+- **Redis unavailable**: Application gracefully degrades to memory mapping without crashing.
+- **Duplicate records**: Removed in the JS Validation Layer and sent to the Skipped tab.
+- **Schema validation**: Zod validates all inputs and outputs strictly.
+
+---
+
+## Assignment Mapping
+
+| Requirement | Status |
+|---|---|
+| CSV Upload | ✅ |
+| Preview | ✅ |
+| AI Extraction | ✅ |
+| Batch Processing | ✅ |
+| Progress | ✅ |
+| Retry | ✅ |
+| Caching | ✅ |
+| Docker | ✅ |
+| Dark Mode | ✅ |
+| Deployment | ✅ |
 
 ---
 
@@ -256,15 +253,15 @@ backend/
     │   └── errorHandler.js           # Global error handler (Multer, AI quota, 500)
     ├── services/
     │   ├── csvParser.js              # PapaParse: CSV → { headers, rows, totalRows }
-    │   ├── aiExtractor.js            # Pipeline orchestrator: routes Standard vs Optimized
+    │   ├── aiExtractor.js            # Pipeline orchestrator: routes Standard vs Adaptive
     │   ├── crmMapper.js              # Post-AI normaliser: dates, email, phone, enums
     │   └── ai/
-    │       ├── geminiClient.js       # Gemini SDK singleton + structured model factory
-    │       ├── schemas.js            # Zod schemas + Gemini responseSchema definitions
+    │       ├── geminiClient.js       # Google Gemini 2.5 Flash SDK singleton + structured model factory
+    │       ├── schemas.js            # Zod schemas + Google Gemini 2.5 Flash responseSchema definitions
     │       ├── mappingDiscovery.js   # Stage 1: header schema → CRM field mapping (Redis cached)
-    │       ├── batchExtraction.js    # Stage 2: per-row AI extraction with Gemini
-    │       ├── normalization.js      # Optimized mode: unique status/source normalization
-    │       ├── programmaticMapper.js # Optimized mode: pure JS row mapping
+    │       ├── batchExtraction.js    # Stage 2: per-row AI extraction with Google Gemini 2.5 Flash
+    │       ├── normalization.js      # Adaptive mode: unique status/source normalization
+    │       ├── programmaticMapper.js # Adaptive mode: pure JS row mapping
     │       └── errorHelpers.js       # Quota/rate-limit error detection + structured error factory
     └── utils/
         ├── batchProcessor.js         # Concurrent batch runner with retry + progress callback
@@ -319,14 +316,14 @@ Starts: Redis → Backend → Frontend → Nginx (port 80).
 
 | Variable | Default | Description |
 |---|---|---|
-| `GEMINI_API_KEY` | *(required)* | Google Gemini API key |
+| `GEMINI_API_KEY` | *(required)* | Google Gemini 2.5 Flash API key |
 | `PORT` | `5000` | Backend server port |
 | `NODE_ENV` | `development` | Environment (`development` / `production`) |
 | `REDIS_URL` | `redis://localhost:6379` | Redis connection URL |
-| `AI_BATCH_SIZE` | `25` | Rows per Gemini batch |
+| `AI_BATCH_SIZE` | `25` | Rows per Google Gemini 2.5 Flash batch |
 | `AI_CONCURRENCY` | `3` | Parallel batches at once |
 | `AI_RETRY_ATTEMPTS` | `3` | Max retries per failed batch |
-| `MAX_FULL_AI_ROWS` | `500` | Threshold: above this switches to Optimized mode |
+| `MAX_FULL_AI_ROWS` | `500` | Threshold: above this switches to Adaptive mode |
 | `MAX_FILE_SIZE_MB` | `10` | Max CSV upload size |
 | `RATE_LIMIT_MAX_REQUESTS` | `10` | Max /process requests per minute per IP |
 | `ALLOWED_ORIGINS` | `http://localhost:3000` | Comma-separated allowed CORS origins |
@@ -339,23 +336,7 @@ Starts: Redis → Backend → Frontend → Nginx (port 80).
 
 ---
 
-## Bonus Features Implemented
-
-| Feature | Detail |
-|---|---|
-| ✅ Drag & Drop upload | Full drag-and-drop with visual feedback in `UploadZone` |
-| ✅ Real-time progress streaming | Server-Sent Events (SSE) with percentage, message, mode, and batch detail |
-| ✅ Retry mechanism | Exponential backoff (3 retries) per batch in `batchProcessor.js` |
-| ✅ Paginated tables | Both preview and result tables are paginated |
-| ✅ Dark mode | Full dark/light toggle with CSS variable-based design system |
-| ✅ Docker setup | Docker Compose with Redis, Backend, Frontend, and Nginx |
-| ✅ Deployment | Frontend on Vercel, Backend on Render |
-| ✅ Redis caching | File result cache (1hr), header mapping cache (7d), status/source cache (24hr) |
-| ✅ Production-Optimized AI mode | 2–3 Gemini calls for any file size instead of thousands |
-
----
-
 ## Author
 
 Built for the GrowEasy Software Developer Assignment.
-Applied position: **Software Developer Intern**
+Applied position: **Full-Time**
