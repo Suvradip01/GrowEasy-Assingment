@@ -5,6 +5,12 @@ const config = require('./src/config');
 const logger = require('./src/utils/logger');
 const { getRedisClient } = require('./src/config/redis');
 
+/**
+ * Initializes the HTTP server and its dependencies.
+ * We attempt a non-blocking Redis connection first so the server can still start
+ * even if the cache layer is down (fallback mode). It also attaches handlers
+ * for graceful shutdown to ensure active requests finish before the process exits.
+ */
 const startServer = async () => {
   // Attempt Redis connection (non-blocking)
   try {
@@ -22,6 +28,8 @@ const startServer = async () => {
   });
 
   // ── Graceful shutdown ──
+  // Ensures the server stops accepting new connections and closes existing ones safely
+  // when the process receives termination signals (e.g., from Docker or Kubernetes).
   const shutdown = async (signal) => {
     logger.info(`${signal} received — shutting down gracefully`);
 

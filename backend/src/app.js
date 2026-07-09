@@ -11,12 +11,19 @@ const importRoutes = require('./routes/importRoutes');
 const errorHandler = require('./middlewares/errorHandler');
 const logger = require('./utils/logger');
 
+/**
+ * Configures the Express application pipeline.
+ * Sets up security middleware (Helmet, CORS), request parsing (JSON/URL-encoded),
+ * and global routing to ensure incoming API requests are sanitized before hitting controllers.
+ */
 const app = express();
 
 // ── Security headers ──
 app.use(helmet());
 
 // ── CORS ──
+// Restricts which domains can make API requests to this server.
+// For development and testing tools (like Postman), we allow requests with no origin.
 app.use(
   cors({
     origin: (origin, callback) => {

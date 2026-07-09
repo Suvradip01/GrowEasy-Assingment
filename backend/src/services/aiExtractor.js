@@ -1,33 +1,5 @@
 'use strict';
 
-/**
- * AI extraction orchestrator — Standard & Production-Optimized Pipeline.
- *
- * ┌─────────────────────────────────────────────────────────────────────────┐
- * │  Upload CSV                                                             │
- * │       ↓                                                                 │
- * │  AI discovers schema (Stage 1 — 1 Gemini call, Redis cached)           │
- * │       ↓                                                                 │
- * │  rows <= MAX_FULL_AI_ROWS?                                              │
- * │  ┌────────YES──────────────────────────────────────────────────────┐    │
- * │  │  STANDARD AI MODE                                               │    │
- * │  │  AI batch extraction (Gemini per batch, configurable size)      │    │
- * │  └────────────────────────────────────────────────────────────────┘    │
- * │  ┌────────NO───────────────────────────────────────────────────────┐    │
- * │  │  PRODUCTION-OPTIMIZED MODE                                      │    │
- * │  │  AI-assisted mapping: unique statuses & sources → 2 AI calls    │    │
- * │  │  Programmatic JS extraction across all rows (zero AI calls)     │    │
- * │  └────────────────────────────────────────────────────────────────┘    │
- * │       ↓                                                                 │
- * │  JavaScript validation layer (email, phone, dates, dedup)              │
- * │       ↓                                                                 │
- * │  Return CRM records                                                     │
- * └─────────────────────────────────────────────────────────────────────────┘
- *
- * FREE TIER SAVINGS:
- *   Without optimization: 50k rows ÷ 25 batch = 2,000 Gemini calls
- *   With optimization:    1 (schema) + 1 (status) + 1 (source) = 3 Gemini calls
- */
 
 const config = require('../config');
 const logger = require('../utils/logger');
@@ -52,22 +24,10 @@ const {
 // Main Orchestrator
 // ─────────────────────────────────────────────────────────────────────
 
-/**
- * Main entry point — routes CSV data through Standard or Production-Optimized pipeline.
- *
- * @param {string[]} headers  - CSV column names
- * @param {object[]} rows     - All parsed CSV rows
- * @param {string}   clientId - Job/client ID for SSE progress streaming (optional)
- * @returns {{
- *   successRecords: object[],
- *   skippedRecords: object[],
- *   fieldMapping: Record<string,string>,
- *   mappingConfidence: number,
- *   needsReview: boolean,
- *   extractionMode: string,
- *   processingMode: 'standard' | 'optimized'
- * }}
- */
+// The main pipeline orchestrator. 
+// Evaluates the file size and decides whether to run the Standard AI Mode (batching every row to AI)
+// or the Production-Optimized Mode (using programmatic JS mapping to save 99% of API costs).
+// It also checks Redis to see if we recently hit a billing quota limit.
 const extractCrmRecords = async (headers, rows, clientId = null) => {
   if (!config.gemini.apiKey) {
     const err = new Error('GEMINI_API_KEY is required for AI extraction.');

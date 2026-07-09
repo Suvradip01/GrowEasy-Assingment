@@ -14,6 +14,7 @@ import {
 import { previewCsv, processCsv, subscribeToProgress } from '@/services/api';
 import type { ProgressEvent } from '@/types/crm';
 
+
 const generateClientId = () =>
   `job-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -34,6 +35,9 @@ export function useImportPipeline() {
     }
   }, []);
 
+  // Establishes a persistent Server-Sent Events (SSE) connection with the backend.
+  // We use SSE instead of WebSockets because it's a lighter, unidirectional stream
+  // perfectly suited for the backend to push real-time AI progress percentages to the UI.
   const openSse = useCallback(
     (clientId: string) => {
       closeSse();
@@ -71,6 +75,9 @@ export function useImportPipeline() {
     };
   }, [closeSse]);
 
+  // Triggered when a user drops a file into the UploadZone.
+  // We send the file to the fast /preview endpoint first, which parses the CSV
+  // and returns a tiny slice (200 rows) so the UI can render instantly without freezing.
   const handleFileSelected = useCallback(
     async (file: File) => {
       fileRef.current = file;
@@ -91,6 +98,10 @@ export function useImportPipeline() {
     [dispatch]
   );
 
+  // The main orchestrator for the actual AI processing.
+  // 1. Opens the SSE connection using a unique clientId to receive live progress.
+  // 2. Uploads the full file to the heavy /process endpoint.
+  // 3. Gracefully handles specific backend errors like Quota Exhaustion to show rich UI dialogs.
   const handleConfirm = useCallback(async () => {
     if (!fileRef.current) return;
 

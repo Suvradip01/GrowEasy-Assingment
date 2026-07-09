@@ -5,15 +5,8 @@ const { getStructuredModel } = require('./geminiClient');
 const { isQuotaError, createAiLimitError } = require('./errorHelpers');
 const { GEMINI_BATCH_SCHEMA, BatchExtractionSchema } = require('./schemas');
 
-/**
- * Stage 2 — Batch Record Extraction.
- * Sends a batch of raw CSV rows + the discovered field mapping to Gemini.
- * Returns an array of typed, Zod-validated CRM records.
- *
- * @param {object[]} rows         - Raw CSV row objects (one batch)
- * @param {object}   fieldMapping - { mapping: Record<string,string> } from Stage 1
- * @returns {object[]} Validated CRM record objects
- */
+// Sends a batch of raw CSV rows and the discovered field mapping to Gemini.
+// Returns an array of typed, Zod-validated CRM records.
 const extractBatch = async (rows, fieldMapping) => {
   const model = getStructuredModel(GEMINI_BATCH_SCHEMA);
 

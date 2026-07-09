@@ -15,7 +15,9 @@ const PREVIEW_ROW_LIMIT = 200;
 
 /**
  * POST /api/v1/import/preview
- * Parses CSV and returns raw rows + headers. No AI involved.
+ * Handles the initial CSV upload step before AI processing.
+ * Parses the CSV into JSON and returns a limited preview (up to 200 rows).
+ * We limit the rows to ensure fast response times for the frontend preview table.
  */
 const previewCsv = (req, res, next) => {
   try {
@@ -38,13 +40,15 @@ const previewCsv = (req, res, next) => {
 
 /**
  * POST /api/v1/import/process
- * Full pipeline: CSV parse → AI extraction → normalise → return CRM records.
- * Results are cached in Redis by file content hash to avoid re-processing.
- *
- * Accepts clientId via:
- *   - Query parameter:  ?clientId=<uuid>
- *   - Request header:   X-Client-Id: <uuid>
- * This clientId is used to stream real-time SSE progress events.
+ * The core business logic endpoint for the AI extraction pipeline.
+ * 
+ * Flow:
+ * 1. Checks Redis cache using a SHA-256 hash of the CSV file to avoid redundant AI costs.
+ * 2. Parses the CSV and sends batches to the AI via `extractCrmRecords`.
+ * 3. Returns the structured CRM leads back to the frontend.
+ * 
+ * We use Server-Sent Events (SSE) via the `clientId` to push real-time progress updates
+ * because the AI processing can take several seconds for large files.
  */
 const processCsv = async (req, res, next) => {
   // ── Extract clientId for SSE progress ──

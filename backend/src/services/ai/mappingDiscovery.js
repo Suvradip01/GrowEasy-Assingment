@@ -24,18 +24,8 @@ const headerCacheKey = (headers) => {
   return `mapping:headers:${hash}`;
 };
 
-/**
- * Stage 1 — Schema Discovery with Redis caching.
- *
- * Sends headers + a sample of rows to Gemini (ONE API call per unique header set).
- * Subsequent uploads with the same column schema hit the cache — zero AI cost.
- *
- * Cache key: SHA-256 hash of sorted, lowercased headers.
- *
- * @param {string[]} headers    - CSV column headers
- * @param {object[]} sampleRows - First 5 rows for context
- * @returns {{ mapping: Record<string,string>, confidence: number, source: string }}
- */
+// Sends headers + a sample of rows to Gemini to discover the schema.
+// Subsequent uploads with the same column schema hit the Redis cache — zero AI cost.
 const discoverFieldMapping = async (headers, sampleRows) => {
   const redis = getRedisClient();
   const cacheKey = headerCacheKey(headers);
