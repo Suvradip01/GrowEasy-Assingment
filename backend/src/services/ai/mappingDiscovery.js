@@ -87,8 +87,20 @@ Return ONLY the JSON object with "mappings" array (each item having "csv_column"
     throw err;
   }
 
+  // ── Guard: check for truncation or safety block ──
+  const candidate = result.response.candidates?.[0];
+  const finishReason = candidate?.finishReason;
+  if (finishReason === 'MAX_TOKENS') {
+    throw new Error('Gemini response was truncated (MAX_TOKENS) during field mapping. Try uploading a smaller sample.');
+  }
+
   const rawJson = result.response.text();
   logger.debug(`[Mapping] Stage 1 raw response: ${rawJson}`);
+
+  // ── Guard: detect quota errors embedded in response body ──
+  if (isQuotaError({ message: rawJson })) {
+    throw createAiLimitError(new Error(rawJson));
+  }
 
   const parsed = JSON.parse(rawJson);
   const validated = FieldMappingSchema.parse(parsed);

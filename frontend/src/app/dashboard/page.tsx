@@ -129,10 +129,22 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {quotaError.retryAfterSeconds && (
+            {quotaError.retryAfterSeconds != null && (
               <div className="flex items-center gap-2 text-[11px] text-text-muted">
                 <Clock size={11} />
-                Retry after ~{Math.ceil(quotaError.retryAfterSeconds / 60)} minutes
+                {quotaError.retryAfterSeconds <= 90
+                  ? `Retry in ~${Math.ceil(quotaError.retryAfterSeconds)} seconds — at ${new Date(
+                      Date.now() + quotaError.retryAfterSeconds * 1000
+                    ).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
+                  : `Retry after ~${Math.ceil(quotaError.retryAfterSeconds / 60)} min — at ${new Date(
+                      Date.now() + quotaError.retryAfterSeconds * 1000
+                    ).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+              </div>
+            )}
+            {quotaError.retryAfterSeconds == null && (
+              <div className="flex items-center gap-2 text-[11px] text-text-muted">
+                <Clock size={11} />
+                Gemini 2.5 Flash (Google AI Studio free tier) resets at midnight Pacific Time
               </div>
             )}
           </motion.div>

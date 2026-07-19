@@ -67,7 +67,29 @@ STRICT extraction rules:
     throw err;
   }
 
+  // ── Guard: check response-level quota / safety blocks before JSON.parse ──
+  const candidate = result.response.candidates?.[0];
+  const finishReason = candidate?.finishReason;
+
+  if (finishReason === 'MAX_TOKENS') {
+    // Output was cut off — increase maxOutputTokens or reduce batch size
+    throw new Error(
+      `Gemini response was truncated (MAX_TOKENS) for batch of ${rows.length} records. ` +
+      `Try reducing AI_BATCH_SIZE in your environment config.`
+    );
+  }
+
+  if (finishReason === 'SAFETY' || finishReason === 'RECITATION') {
+    throw new Error(`Gemini blocked the response (finishReason: ${finishReason}). Batch skipped.`);
+  }
+
   const rawJson = result.response.text();
+
+  // ── Guard: detect quota errors embedded in the response text ──
+  if (isQuotaError({ message: rawJson })) {
+    throw createAiLimitError(new Error(rawJson));
+  }
+
   const parsed = JSON.parse(rawJson);
   const validated = BatchExtractionSchema.parse(parsed);
 

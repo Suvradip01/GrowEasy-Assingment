@@ -103,6 +103,12 @@ const runWithRetry = async ({ batchIndex, chunk, processor, maxRetries, getRetry
       return result;
     } catch (err) {
       lastError = err;
+      
+      // If this is a fatal error (like Quota Exhausted), abort immediately without retrying
+      if (err.abortRemainingBatches) {
+        throw err;
+      }
+      
       if (attempt < maxRetries) {
         // Use provider-recommended delay if available, otherwise exponential backoff
         const providerDelay = getRetryDelayMs?.(err);

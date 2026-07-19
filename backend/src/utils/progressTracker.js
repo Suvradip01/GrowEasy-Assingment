@@ -24,12 +24,12 @@ progressEmitter.setMaxListeners(200);
  * Emit a progress update for a specific import job.
  *
  * @param {string} clientId - Unique job/client identifier
- * @param {{ progress: number, message: string, mode?: string, details?: string }} payload
+ * @param {{ progress: number, message: string, mode?: string, details?: string, retryAfterSeconds?: number|null, errorCode?: string|null }} payload
  */
-const emitProgress = (clientId, { progress, message, mode = null, details = null }) => {
+const emitProgress = (clientId, { progress, message, mode = null, details = null, retryAfterSeconds = null, errorCode = null }) => {
   if (!clientId) return;
   logger.debug(`[SSE] clientId=${clientId} progress=${progress}% "${message}"`);
-  progressEmitter.emit(`progress:${clientId}`, { progress, message, mode, details });
+  progressEmitter.emit(`progress:${clientId}`, { progress, message, mode, details, retryAfterSeconds, errorCode });
 };
 
 /**

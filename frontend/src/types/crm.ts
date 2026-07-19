@@ -81,6 +81,10 @@ export interface ProgressEvent {
   mode: string | null;
   /** Fine-grained detail (e.g., "Batch 4 / 20" | "12,000 / 50,000 rows") */
   details: string | null;
+  /** Seconds until Gemini rate-limit resets (present on -1 error events) */
+  retryAfterSeconds?: number | null;
+  /** Error code (e.g., "AI_QUOTA_EXHAUSTED" | "AI_RATE_LIMITED") */
+  errorCode?: string | null;
 }
 
 // Step wizard steps

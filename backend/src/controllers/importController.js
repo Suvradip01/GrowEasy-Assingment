@@ -3,7 +3,6 @@
 const crypto = require('crypto');
 const { parseCsvBuffer } = require('../services/csvParser');
 const { extractCrmRecords } = require('../services/aiExtractor');
-const { normaliseRecords } = require('../services/crmMapper');
 const { getRedisClient } = require('../config/redis');
 const { success } = require('../utils/responseHelper');
 const { emitProgress } = require('../utils/progressTracker');
@@ -21,7 +20,7 @@ const PREVIEW_ROW_LIMIT = 200;
  */
 const previewCsv = (req, res, next) => {
   try {
-    const { headers, rows, totalRows } = parseCsvBuffer(req.file.buffer);
+    const { headers, rows, totalRows } = parseCsvBuffer(req.file.buffer, PREVIEW_ROW_LIMIT);
     const previewRows = rows.slice(0, PREVIEW_ROW_LIMIT);
 
     return success(res, {
@@ -142,13 +141,15 @@ const processCsv = async (req, res, next) => {
 
     return success(res, result);
   } catch (err) {
-    // ── Emit quota/rate-limit error over SSE so frontend shows rich error ──
-    if (clientId && (err.code === 'AI_RATE_LIMITED' || err.code === 'AI_QUOTA_EXHAUSTED')) {
+    // ── Emit error over SSE so frontend shows rich error and stops loading ──
+    if (clientId) {
       emitProgress(clientId, {
         progress: -1, // Signal: error
-        message: err.message,
+        message: err.message || 'An unexpected error occurred during processing.',
         mode: 'error',
-        details: err.code,
+        details: err.code || 'UNKNOWN_ERROR',
+        retryAfterSeconds: err.retryAfterSeconds ?? null,
+        errorCode: err.code ?? null,
       });
     }
     next(err);

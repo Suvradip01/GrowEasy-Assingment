@@ -45,7 +45,21 @@ export function useImportPipeline() {
         clientId,
         (event: ProgressEvent) => {
           if (event.progress === -1) {
-            dispatch(setError(event.message));
+            // If it's a quota/rate-limit error, show the rich quota UI with exact retry time
+            if (
+              event.errorCode === 'AI_QUOTA_EXHAUSTED' ||
+              event.errorCode === 'AI_RATE_LIMITED'
+            ) {
+              dispatch(
+                setQuotaError({
+                  processed: 0,
+                  remaining: 0,
+                  retryAfterSeconds: event.retryAfterSeconds ?? null,
+                })
+              );
+            } else {
+              dispatch(setError(event.message));
+            }
             dispatch(setStep(2));
             closeSse();
             return;
