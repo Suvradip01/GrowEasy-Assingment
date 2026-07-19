@@ -96,9 +96,9 @@ const extractCrmRecords = async (headers, rows, clientId = null) => {
         onRetryWait: (delayMs, attempt) => {
           emit(
             30, // Stay around processing phase, wait to jump
-            `Waiting for rate limit reset (${Math.ceil(delayMs / 1000)}s)…`,
+            `Optimizing processing queue (${Math.ceil(delayMs / 1000)}s)…`,
             modeDisplay,
-            `Paused to respect Gemini limits (attempt ${attempt})`
+            `Temporarily paused to ensure stable processing`
           );
         },
         onBatchComplete: (done, total) => {
