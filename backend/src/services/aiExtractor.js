@@ -93,6 +93,14 @@ const extractCrmRecords = async (headers, rows, clientId = null) => {
         processor: (batch) => extractBatch(batch, fieldMapping),
         shouldAbort: (err) => err?.abortRemainingBatches === true,
         getRetryDelayMs,
+        onRetryWait: (delayMs, attempt) => {
+          emit(
+            30, // Stay around processing phase, wait to jump
+            `Waiting for rate limit reset (${Math.ceil(delayMs / 1000)}s)…`,
+            modeDisplay,
+            `Paused to respect Gemini limits (attempt ${attempt})`
+          );
+        },
         onBatchComplete: (done, total) => {
           // Progress from 25 → 85 during batch processing
           const batchProgress = 25 + Math.round((done / total) * 60);

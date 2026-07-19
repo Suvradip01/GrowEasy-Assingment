@@ -150,11 +150,29 @@ Each entry: { "raw": "<original>", "normalized": "<CRM_STATUS or null>" }
 `.trim();
 
   let geminiResult;
-  try {
-    geminiResult = await model.generateContent(prompt);
-  } catch (err) {
-    if (isQuotaError(err)) throw createAiLimitError(err);
-    throw err;
+  let attempt = 0;
+  const maxRetries = 3;
+
+  while (attempt < maxRetries) {
+    attempt++;
+    try {
+      geminiResult = await model.generateContent(prompt);
+      break;
+    } catch (err) {
+      if (isQuotaError(err)) {
+        const aiErr = createAiLimitError(err);
+        if (aiErr.abortRemainingBatches) throw aiErr;
+        
+        if (attempt < maxRetries) {
+          const delay = (aiErr.retryAfterSeconds || Math.pow(2, attempt)) * 1000;
+          logger.warn(`[Norm] Rate limit hit on attempt ${attempt}, retrying in ${delay}ms`);
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+      }
+      if (isQuotaError(err)) throw createAiLimitError(err);
+      throw err;
+    }
   }
 
   const rawJson = geminiResult.response.text();
@@ -241,11 +259,29 @@ Each entry: { "raw": "<original>", "normalized": "<data_source or null>" }
 `.trim();
 
   let geminiResult;
-  try {
-    geminiResult = await model.generateContent(prompt);
-  } catch (err) {
-    if (isQuotaError(err)) throw createAiLimitError(err);
-    throw err;
+  let attempt = 0;
+  const maxRetries = 3;
+
+  while (attempt < maxRetries) {
+    attempt++;
+    try {
+      geminiResult = await model.generateContent(prompt);
+      break;
+    } catch (err) {
+      if (isQuotaError(err)) {
+        const aiErr = createAiLimitError(err);
+        if (aiErr.abortRemainingBatches) throw aiErr;
+        
+        if (attempt < maxRetries) {
+          const delay = (aiErr.retryAfterSeconds || Math.pow(2, attempt)) * 1000;
+          logger.warn(`[Norm] Rate limit hit on attempt ${attempt}, retrying in ${delay}ms`);
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+      }
+      if (isQuotaError(err)) throw createAiLimitError(err);
+      throw err;
+    }
   }
 
   const rawJson = geminiResult.response.text();

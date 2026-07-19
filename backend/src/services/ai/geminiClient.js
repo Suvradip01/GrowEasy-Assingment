@@ -20,6 +20,7 @@ const getStructuredModel = (responseSchema) => {
     generationConfig: {
       responseMimeType: 'application/json',
       responseSchema,
+      thinkingConfig: { thinkingLevel: 'low' },
       temperature: 0.1,       // Low temperature → consistent, deterministic output
       topP: 0.8,
       maxOutputTokens: 65536, // Raised from 8192 to prevent "Unterminated string in JSON" on large batches

@@ -18,6 +18,13 @@ const isQuotaError = (err) => {
  */
 const isQuotaExhaustedError = (err) => {
   const text = `${err?.message || ''} ${JSON.stringify(err || {})}`;
+  
+  // If the error explicitly mentions "per minute", it's a rate limit (which we can wait out),
+  // not a hard quota exhaustion.
+  if (/per minute|per_minute/i.test(text)) {
+    return false;
+  }
+
   return (
     isQuotaError(err) &&
     /billing details|free_tier_requests|perday|per day|requestsperday|quota exceeded/i.test(text)

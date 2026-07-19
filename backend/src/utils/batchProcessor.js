@@ -28,6 +28,7 @@ const processBatches = async ({
   shouldAbort,
   getRetryDelayMs,
   onBatchComplete,
+  onRetryWait,
 }) => {
   // Chunk items into batches
   const batches = [];
@@ -51,6 +52,7 @@ const processBatches = async ({
         processor,
         maxRetries: retries,
         getRetryDelayMs,
+        onRetryWait,
       })
     );
 
@@ -93,7 +95,7 @@ const processBatches = async ({
  * Runs a single batch processor with exponential backoff retries.
  * Waits for the provider-recommended delay on rate-limit errors (429).
  */
-const runWithRetry = async ({ batchIndex, chunk, processor, maxRetries, getRetryDelayMs }) => {
+const runWithRetry = async ({ batchIndex, chunk, processor, maxRetries, getRetryDelayMs, onRetryWait }) => {
   let lastError;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -116,6 +118,9 @@ const runWithRetry = async ({ batchIndex, chunk, processor, maxRetries, getRetry
         logger.warn(
           `Batch ${batchIndex} attempt ${attempt} failed, retrying in ${delay}ms: ${err.message}`
         );
+        if (onRetryWait) {
+          onRetryWait(delay, attempt, maxRetries);
+        }
         await sleep(delay);
       }
     }

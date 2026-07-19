@@ -80,11 +80,29 @@ Return ONLY the JSON object with "mappings" array (each item having "csv_column"
   logger.debug('[Mapping] Stage 1: Sending field mapping request to Gemini');
 
   let result;
-  try {
-    result = await model.generateContent(prompt);
-  } catch (err) {
-    if (isQuotaError(err)) throw createAiLimitError(err);
-    throw err;
+  let attempt = 0;
+  const maxRetries = 3;
+
+  while (attempt < maxRetries) {
+    attempt++;
+    try {
+      result = await model.generateContent(prompt);
+      break;
+    } catch (err) {
+      if (isQuotaError(err)) {
+        const aiErr = createAiLimitError(err);
+        if (aiErr.abortRemainingBatches) throw aiErr;
+        
+        if (attempt < maxRetries) {
+          const delay = (aiErr.retryAfterSeconds || Math.pow(2, attempt)) * 1000;
+          logger.warn(`[Mapping] Rate limit hit on attempt ${attempt}, retrying in ${delay}ms`);
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+      }
+      if (isQuotaError(err)) throw createAiLimitError(err);
+      throw err;
+    }
   }
 
   // ── Guard: check for truncation or safety block ──
